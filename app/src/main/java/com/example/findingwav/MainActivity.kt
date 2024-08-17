@@ -2,6 +2,8 @@ package com.example.findingwav
 
 
 import android.content.ContentUris
+import android.content.Intent
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.AudioAttributes
 import android.media.MediaMetadataRetriever
@@ -9,8 +11,10 @@ import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.provider.MediaStore
 import android.provider.MediaStore.Audio
+import android.provider.Settings
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
@@ -68,6 +72,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
 
 import com.example.findingwav.ui.theme.FindingWavTheme
+import kotlinx.coroutines.runBlocking
 import java.util.concurrent.TimeUnit
 
 import org.intellij.lang.annotations.JdkConstants.HorizontalAlignment
@@ -75,33 +80,51 @@ import org.intellij.lang.annotations.JdkConstants.HorizontalAlignment
 
 
 class MainActivity : AppCompatActivity() {
-    @OptIn(ExperimentalMaterial3Api::class)
+
+    private lateinit var songList : MutableList<Audio>
+    private var songCount : Int = 0
+
+
+    fun setSongList() {
+        // If have permissions just do it
+        if (Environment.isExternalStorageManager())
+        {
+            songList = getAllMusic()
+        }
+        else
+        {
+            startActivity(
+                Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+            )
+            songList = getAllMusic()
+
+        }
+    }
+    public fun getSongList() : MutableList<Audio>
+    {
+        return songList
+    }
+    public fun getCurrentSong() : Audio
+    {
+        return songList[songCount]
+    }
+
+
+
+        @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
+        setSongList()
         enableEdgeToEdge()
         // Allows to play music when using changeSong()
         var musicPlayer = MediaPlayer()
+        var songList : MutableList<Audio>
+
         setContent {
             FindingWavTheme {
                 Scaffold(modifier =
 
                 Modifier.fillMaxSize()) { innerPadding ->
-                    
-                  /*
-                  //NECESSARY TO GET THE FILES. ADD THIS AS A BUTTON MAYBE OR JUST UNCOMMENT TO RUN ON LAUNCH?
-                  startActivity(
-                                Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
-
-                            )
-                            runBlocking {
-                                // running on new thread?
-                                // hopefully not blocking UI (main) thread
-                                // And hopefully can be extracted out of this thread
-                                var songList = getAllMusic()
-                            }
-                   */
-
                 }
 
                 // main ui
@@ -146,6 +169,8 @@ class MainActivity : AppCompatActivity() {
         val duration: Int,
         )
 
+
+
     fun getAllMusic(): MutableList<Audio> {
         //println("Allowed to access files?: " + Environment.isExternalStorageManager())
         // Where all the data is appended to
@@ -168,11 +193,12 @@ class MainActivity : AppCompatActivity() {
             MediaStore.Audio.Media.ARTIST,
             MediaStore.Audio.Media.DURATION,
         )
-        val selection = "${MediaStore.Audio.Media.DURATION} >= 0 * ?"
+        // Greater than SelectionArgs
+        val selection = "${MediaStore.Audio.Media.DURATION} >= ?"
+        // 1 minute
         val selectionArgs = arrayOf(TimeUnit.MILLISECONDS.toMinutes(1).toString())
         val sortOrder = ""
 
-        val metadataGetter : MediaMetadataRetriever = MediaMetadataRetriever()
 
         val query = applicationContext.contentResolver.query(
             collection,
@@ -182,7 +208,7 @@ class MainActivity : AppCompatActivity() {
             sortOrder
         )
             query?.use { cursor ->
-                // Only assign once (i.e caching)
+                // Only assign once (i.e caching), the columns
                 val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
                 val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
                 val albumColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
@@ -200,12 +226,7 @@ class MainActivity : AppCompatActivity() {
                     val duration = cursor.getInt(durationColumn)
                     // This is the file path of the file
                     val contentURI = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id)
-                    // Stupid having to convert toString() but whatever
-                    metadataGetter.setDataSource(applicationContext, contentURI)
-                    val rawAblum = metadataGetter.embeddedPicture
-                    var length = rawAblum?.size
-                    if (length == null) length = 0
-                    val albumCover = BitmapFactory.decodeByteArray(rawAblum, 0, length)
+
                     dataList.add(MainActivity.Audio(contentURI,name,  album, artist, duration))
                 }
                 catch (e : Exception) {
@@ -213,9 +234,22 @@ class MainActivity : AppCompatActivity() {
                 }
 
             }
-            dataList += Audio(collection, "Test", "Test", "Test", 30)
         }
         return dataList
+
+    }
+
+    public fun makeImage(filePath : Uri) : Bitmap {
+        /**
+         * Returns a Bitmap image of the album cover (if none, bitmap is like 0x0 image)
+         */
+        val metadataGetter : MediaMetadataRetriever = MediaMetadataRetriever()
+
+        metadataGetter.setDataSource(applicationContext, filePath)
+        val rawAblum = metadataGetter.embeddedPicture
+        var length = rawAblum?.size
+        if (length == null) length = 0
+        return BitmapFactory.decodeByteArray(rawAblum, 0, length)
 
     }
 }
@@ -260,14 +294,12 @@ private fun getPlayList(): List<Music> {
 
 /** Mock data of playlist Strings */
 private fun getPlayLists(): List<String> {
+
     return listOf("Main", "Second", "Rock") //, "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG")
 }
 
 
-/** Set song name, song */
-fun loadSongs() {
 
-}
 
 
 @Composable
