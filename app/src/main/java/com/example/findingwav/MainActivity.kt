@@ -156,6 +156,8 @@ fun PlaylistSelect() {
 
 @Composable
 fun Player() {
+    var modifier = Modifier.fillMaxWidth()
+
     Column() {
         // song title
 
@@ -167,6 +169,13 @@ fun Player() {
 
         // music playing bar
     }
+}
+
+@Composable
+fun SongTitle(modifier: Modifier = Modifier) {
+    Text(
+        text = "Song Title"
+    )
 }
 
 @Composable
@@ -194,6 +203,13 @@ fun MusicImage() {
         )
 
     }
+}
+
+@Composable
+fun ArtistName() {
+    Text(
+        text = "Artist Name"
+    )
 }
 
 @Composable
