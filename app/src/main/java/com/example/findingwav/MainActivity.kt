@@ -13,7 +13,6 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
-import android.provider.MediaStore.Audio
 import android.provider.Settings
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -60,26 +59,25 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Size
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
-
-import androidx.compose.ui.layout.HorizontalAlignmentLine
 
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
+import androidx.core.graphics.drawable.toBitmap
+import androidx.core.graphics.drawable.toDrawable
 
 import com.example.findingwav.ui.theme.FindingWavTheme
-import kotlinx.coroutines.runBlocking
 import java.util.concurrent.TimeUnit
-
-import org.intellij.lang.annotations.JdkConstants.HorizontalAlignment
-
 
 
 class MainActivity : AppCompatActivity() {
@@ -88,8 +86,7 @@ class MainActivity : AppCompatActivity() {
     private var songCount : Int = 0
     private lateinit var playLists : MutableMap<String, MutableList<Audio>>
 
-    /*
-    @RequiresApi(Build.VERSION_CODES.R)
+
     fun setSongList() {
         // If have permissions just do it
         if (Environment.isExternalStorageManager())
@@ -102,7 +99,6 @@ class MainActivity : AppCompatActivity() {
                 Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
             )
             songList = getAllMusic()
-
         }
     }
     */
@@ -119,7 +115,6 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-
         @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -127,7 +122,6 @@ class MainActivity : AppCompatActivity() {
         enableEdgeToEdge()
         // Allows to play music when using changeSong()
         var musicPlayer = MediaPlayer()
-        var songList : MutableList<Audio>
 
         setContent {
             FindingWavTheme {
@@ -138,7 +132,24 @@ class MainActivity : AppCompatActivity() {
 
                 // main ui
                 Title("Finding Wuv", "Playlist Creation Mode", Modifier)
-                Player(musicPlayer)
+
+                var currentSong by remember {
+                    mutableStateOf(getCurrentSong())
+                }
+
+
+
+                Player(musicPlayer,
+                    songList,
+                    currentSong, 4,
+                    makeImage(currentSong.uri),
+                    onAccept = {
+                        songCount++
+                        currentSong = getCurrentSong()}
+                )
+
+                
+
             }
         }
     }
@@ -255,10 +266,23 @@ class MainActivity : AppCompatActivity() {
         val metadataGetter : MediaMetadataRetriever = MediaMetadataRetriever()
 
         metadataGetter.setDataSource(applicationContext, filePath)
-        val rawAblum = metadataGetter.embeddedPicture
-        var length = rawAblum?.size
-        if (length == null) length = 0
-        return BitmapFactory.decodeByteArray(rawAblum, 0, length)
+        val rawAlbum = metadataGetter.embeddedPicture
+        var length = 0
+        try {
+            println(getCurrentSong().name)
+            length = rawAlbum!!.size
+        }
+        catch (e: Exception){
+            println("Ooops no Album Image")
+            return R.drawable.reject.toDrawable().toBitmap(width = 512, height = 512)
+        }
+        if (length == 0 || rawAlbum == null)
+        {
+            return R.drawable.no_album.toDrawable().toBitmap(width = 512, height = 512)
+        }
+        var bitmap = BitmapFactory.decodeByteArray(rawAlbum, 0, length)
+        if (bitmap == null) return R.drawable.no_album.toDrawable().toBitmap(width = 512, height = 512)
+        return bitmap
 
     }
 }
@@ -432,9 +456,21 @@ fun PlaylistSelect() {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun Player(player: MediaPlayer) {
+fun Player(
+    player: MediaPlayer,
+    songList: MutableList<MainActivity.Audio>,
+    currentSong: MainActivity.Audio,
+    initSongCount: Int,
+    image: Bitmap,
+    onAccept: () -> Unit) {
     var modifier = Modifier.fillMaxWidth()
-
+    // Get currentSong as Audio class
+   /* var songCount by remember {
+        mutableIntStateOf(initSongCount)
+    }
+    var currentSong by remember {
+        mutableStateOf(songList[songCount])
+    }*/
     val sliderPosition = remember {
         mutableLongStateOf(0)
     }
@@ -443,20 +479,19 @@ fun Player(player: MediaPlayer) {
         mutableLongStateOf(0)
     }
 
-    val totalDuration = remember {
-        mutableLongStateOf(0)
-    }
+    /*val totalDuration = remember {
+        mutableLongStateOf(currentSong.duration.toLong())
+    }*/
 
-    var songName = remember {
-        mutableStateOf("songTitle")
+
     }
 
     var artistName by remember {
-        mutableStateOf("artistTitle")
-    }
+        mutableStateOf(currentSong.artist)
+    }*/
 
     var albumImage by remember {
-        mutableStateOf(R.drawable.musik)
+        mutableStateOf(image)
     }
 
     Column (
@@ -466,14 +501,23 @@ fun Player(player: MediaPlayer) {
         // Playlist selector
         PlaylistSelect()
         // song title (replace with song name variable
-        SongTitle(songName)
+        SongTitle(currentSong.name)
         // music image
-        val image = painterResource(id = albumImage)
         MusicImage(image)
         // artist name
-        ArtistName(artistName)
+
+        ArtistName(currentSong.artist)
         // accept / reject button
-        AcceptReject()
+        AcceptReject(onAccept = {
+            onAccept()
+            /*songCount++
+            currentSong = songList[songCount]*/
+            println(currentSong)
+                                },
+            onReject = {
+            //TODO: reject logic, if wanted
+        })
+        var totalDuration = currentSong.duration.toLong()
         // music progress bar
         TrackSlider(
             value = sliderPosition.longValue.toFloat(),
@@ -484,10 +528,20 @@ fun Player(player: MediaPlayer) {
                 currentPosition.longValue = sliderPosition.longValue
                 player.seekTo(sliderPosition.longValue.toInt())
             },
-            songDuration = totalDuration.longValue.toFloat()
+            songDuration = totalDuration.toFloat()
         )
         // music times
-        TrackSliderTime("00:00", "03:02")
+        var minutes = totalDuration / (60 * 1000)
+        var seconds = (totalDuration / 1000) % 60
+        var minutesString = minutes.toString()
+        var secondsString = seconds.toString()
+        if (minutes < 10) {
+            minutesString = "0" + minutesString
+        }
+        if (seconds < 10) {
+            secondsString = "0" + secondsString
+        }
+        TrackSliderTime("00:00", "$minutesString:$secondsString")
         // music controls
         Playbar()
     }
@@ -503,8 +557,10 @@ fun SongTitle(title: MutableState<String>) {
     )
 }
 
+
+
 @Composable
-fun MusicImage(image: Painter) {
+fun MusicImage(image: Bitmap) {
     Box (
         modifier = Modifier
             .padding(top = 20.dp)
@@ -516,7 +572,7 @@ fun MusicImage(image: Painter) {
 
     ) {
         Image(
-            painter = image,
+            bitmap = image.asImageBitmap(),
             contentDescription = null,
             contentScale = ContentScale.Crop,
             alpha = 1.0F,//opacity
@@ -539,7 +595,7 @@ fun ArtistName(name: String) {
 }
 
 @Composable
-fun AcceptReject() {
+fun AcceptReject(onAccept : () -> Unit, onReject: () -> Unit) {
     Row(
         modifier = Modifier
             .width(200.dp)
@@ -547,15 +603,17 @@ fun AcceptReject() {
         horizontalArrangement = Arrangement.SpaceBetween
 
     ) {
-        Reject()
-        Accept()
+        Reject(onReject)
+        Accept(onAccept)
     }
 
 }
 
 @Composable
-fun Accept() {
-    Button(onClick = { HandleAccept() },
+fun Accept(onAccept: () -> Unit) {
+    Button(onClick =  {
+        onAccept()
+                     },
         colors = ButtonColors(Color.Green, Color.Green, Color.Green, Color.Green),
         modifier = Modifier
             .width(70.dp)
@@ -568,9 +626,9 @@ fun Accept() {
 
 
 @Composable
-fun Reject() {
+fun Reject(onReject: () -> Unit) {
     Button(
-        onClick = { HandleReject() },
+        onClick = { onReject()},
         colors = ButtonColors(Color.Red, Color.Red, Color.Red, Color.Red),
         modifier = Modifier
             .width(70.dp)
@@ -590,8 +648,9 @@ fun TrackSliderTime(startTime: String, endTime: String) {
         .padding(horizontal = 20.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(text = startTime, color = Color.White)
-        Text(text = endTime, color = Color.White)
+        Text(startTime, style = TextStyle(shadow = Shadow(color = Color.White, blurRadius = 1.0f)))
+        Text(endTime, style = TextStyle(shadow = Shadow(color = Color.White, blurRadius = 1.0f)))
+
 
     }
 }
@@ -654,7 +713,7 @@ fun Playbar() {
 @Composable
 fun PlayButton() {
     Button(
-        onClick = { HandlePlay() },
+        onClick = {  },
         colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.0F))
     ) {
         Image(painter = painterResource(id = R.drawable.play), contentDescription = null)
@@ -713,8 +772,9 @@ fun HandleNextSong() {
 }
 
 /** Event Handler for the checkmark (add to playlist) */
-fun HandleAccept() {
+fun HandleAccept(currentSong: MainActivity.Audio) {
     println("Handle Accept function called")
+
     testM3U()
 }
 
@@ -729,8 +789,8 @@ fun HandleReject() {
 }
 
 /** pause or play the song */
-fun HandlePlay() {
-
+fun HandlePlay(currentSong: MainActivity.Audio) {
+    //TODO: Play song
 }
 
 
