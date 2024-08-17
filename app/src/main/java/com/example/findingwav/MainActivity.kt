@@ -706,3 +706,4 @@ fun TitlePreview() {
     }
 }
 
+fun toM3U(songName: String, artistName: String, songDuration: Int)
