@@ -707,9 +707,7 @@ fun CardSwipe(image: Bitmap, artist: String, twyperController: TwyperController,
 fun ArtistName(name: String) {
     Text(
         text = name,
-        modifier = Modifier.padding(top = 5.dp),
-        color = Color.White
-    )
+        modifier = Modifier.padding(top = 5.dp)    )
 }
 
 @Composable
