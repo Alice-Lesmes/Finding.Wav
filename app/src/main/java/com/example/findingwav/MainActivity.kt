@@ -77,6 +77,7 @@ import androidx.core.graphics.drawable.toBitmap
 import androidx.core.graphics.drawable.toDrawable
 
 import com.example.findingwav.ui.theme.FindingWavTheme
+import java.io.File
 import java.util.concurrent.TimeUnit
 
 
@@ -85,8 +86,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var songList : MutableList<Audio>
     private var songCount : Int = 0
     private lateinit var playLists : MutableMap<String, MutableList<Audio>>
+    private var currentPlaylist : String = "Main"
 
-
+    @RequiresApi(Build.VERSION_CODES.R)
     fun setSongList() {
         // If have permissions just do it
         if (Environment.isExternalStorageManager())
@@ -115,6 +117,7 @@ class MainActivity : AppCompatActivity() {
     }
 
 
+        @RequiresApi(Build.VERSION_CODES.R)
         @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -132,7 +135,7 @@ class MainActivity : AppCompatActivity() {
 
                 // main ui
                 Title("Finding Wuv", "Playlist Creation Mode", Modifier)
-
+                Export(currentPlaylist, getPlaylist(currentPlaylist))
                 var currentSong by remember {
                     mutableStateOf(getCurrentSong())
                 }
@@ -387,6 +390,20 @@ fun Title(x: String, y: String, modifier: Modifier = Modifier) {
 
         )
     }
+}
+
+/** Export the current playlist */
+@Composable
+fun Export(playlistName: String, playlist: MutableList<MainActivity.Audio>?) {
+    Button(onClick = { toM3U(playlistName, playlist) }) {
+        Image(
+            painter = painterResource(id = R.drawable.export),
+            contentDescription = null,
+            modifier = Modifier
+                .padding(start = 10.dp, top = 10.dp)
+        )
+    }
+
 }
 
 @Composable
@@ -825,7 +842,7 @@ fun testM3U() {
     var playlist: MutableList<MainActivity.Audio> = mutableListOf<MainActivity.Audio>()
     playlist.add(testSong)
 
-    println(toM3U(playlist))
+    println(toM3U("Main", playlist))
 }
 
 
@@ -842,15 +859,24 @@ fun testM3U() {
  *
  *
  * */
-fun toM3U(playlist: MutableList<MainActivity.Audio>) : String {
+fun toM3U(playlistName: String, playlist: MutableList<MainActivity.Audio>?) : String {
     // grab a playlist
     var out: StringBuilder = StringBuilder()
 
     out.append("#EXTM3U\n")
-    for (song in playlist) {
-        out.append("#EXTINF:").append(song.duration).append(",").append(song.artist).append(" - ").append(song.name).append("\n")
-        out.append(song.uri)
+    if (playlist != null) {
+        for (song in playlist) {
+            out.append("#EXTINF:").append(song.duration).append(",").append(song.artist).append(" - ").append(song.name).append("\n")
+            out.append(song.uri)
+        }
     }
+
+    // attempt to write locally to downloads?
+    val filePath: String = "Playlists/$playlistName"
+    val file = File(filePath)
+
+    file.writeText(out.toString())
+    println("Line written successfully")
 
     return out.toString()
 
