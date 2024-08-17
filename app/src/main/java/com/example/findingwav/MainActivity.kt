@@ -314,6 +314,7 @@ fun retrievePlaylist(name: String) {
 
 }
 
+// this can probably be deleted
 open class GetParameters {
     open var songName: String = "songTitle"
 
@@ -488,7 +489,7 @@ fun Player(player: MediaPlayer) {
         // music times
         TrackSliderTime("00:00", "03:02")
         // music controls
-        Playbar(songName)
+        Playbar()
     }
 }
 
@@ -637,7 +638,7 @@ fun TrackSlider(
 
 
 @Composable
-fun Playbar(songName: MutableState<String>) {
+fun Playbar() {
     Row (
         modifier = Modifier
             .padding(horizontal = 20.dp)
@@ -646,7 +647,7 @@ fun Playbar(songName: MutableState<String>) {
     ) {
         PreviousButton()
         PlayButton()
-        NextButton(songName)
+        NextButton()
     }
 }
 
@@ -671,9 +672,9 @@ fun PreviousButton() {
 }
 
 @Composable
-fun NextButton(songName: MutableState<String>) {
+fun NextButton() {
     Button(
-        onClick = { HandleNextSong(songName) },
+        onClick = { HandleNextSong() },
         colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.0F))
     ) {
         Image(painter = painterResource(id = R.drawable.next), contentDescription = null)
@@ -703,13 +704,12 @@ fun NextSong() {
 /** Event handler for the next song button
  * get a parameter of all the stuff? */
 
-fun HandleNextSong(songName: MutableState<String>) {
+fun HandleNextSong() {
     println("Handle Next Song function called")
     // get the current time stored in SliderBar.
 
     // mock change the songTitle, artistTitle, image and duration
     // NextSong()
-    songName.value = "Hello"
 }
 
 /** Event Handler for the checkmark (add to playlist) */
