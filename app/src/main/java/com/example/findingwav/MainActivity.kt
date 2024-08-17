@@ -1,13 +1,7 @@
 package com.example.findingwav
 
-import android.app.PendingIntent.getActivity
-import android.content.ContentResolver
+
 import android.content.ContentUris
-import android.content.Context
-import android.content.Intent
-import android.content.res.AssetFileDescriptor
-import android.database.Cursor
-import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.AudioAttributes
 import android.media.MediaMetadataRetriever
@@ -16,110 +10,48 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
-import android.provider.ContactsContract.Directory
 import android.provider.MediaStore
 import android.provider.MediaStore.Audio
-import android.provider.MediaStore.Audio.Media
-import android.provider.Settings
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.compose.foundation.layout.Column
-
-import android.media.MediaPlayer
-import android.net.Uri
-import android.os.Bundle
-import android.widget.ImageButton
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.annotation.DrawableRes
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-
-
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.material.icons.materialIcon
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonColors
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.colorResource
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
-import com.CodeBoy.MediaFacer.AudioGet
-import com.CodeBoy.MediaFacer.BuildConfig
-import com.CodeBoy.MediaFacer.MediaFacer
-import com.CodeBoy.MediaFacer.mediaHolders.audioContent
-
-import androidx.compose.runtime.LaunchedEffect
-
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-
-import androidx.compose.ui.Alignment
-
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
-
-import androidx.compose.ui.unit.sp
-import androidx.media3.common.MediaItem
-import androidx.media3.exoplayer.ExoPlayer
-import com.example.findingwav.ui.theme.FindingWavTheme
-import kotlinx.coroutines.runBlocking
-import java.net.URI
-import java.util.concurrent.TimeUnit
-import kotlin.time.Duration
-
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonColors
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
+import com.example.findingwav.ui.theme.FindingWavTheme
+import java.util.concurrent.TimeUnit
 
 
 class MainActivity : AppCompatActivity() {
@@ -129,7 +61,6 @@ class MainActivity : AppCompatActivity() {
 
         enableEdgeToEdge()
 
-        val player = ExoPlayer.Builder(this).build()
 
         setContent {
             FindingWavTheme {
@@ -267,20 +198,6 @@ class MainActivity : AppCompatActivity() {
 }
 
 
-=======
-                            musicPlayerTest.start();
-                            showTime = true
-                            currentTime = musicPlayerTest.timestamp
-
-                        }) {
-                            Text(text = "play music")
-                        }
-                        if (showTime) {
-                            // Only updates on button press but whatever
-                            Text("Here is the current timestamp: " + currentTime)
-                        }
-                        Text(text = getMusicClass.getMusicDir().toString())
-                    }
 
 
                     /* Scaffold(modifier = Modifier.fillMaxSize()) { padding ->
@@ -290,29 +207,11 @@ class MainActivity : AppCompatActivity() {
                     *   Elem()
                     * }*/
 
-                    Scaffold(modifier = Modifier.fillMaxSize()) { padding ->
-                        Title(
-                            x = "Finding True.Wav",
-                            y = "Playlist Creation Mode",
-                            modifier = Modifier.padding(padding)
-                        )
 
-                    }
-                    Player(player)
-                }
-            }
-        }
-    }
-}
 // this could be useful (making the basic music bar)
 // https://www.digitalocean.com/community/tutorials/android-media-player-song-with-seekbar
 
 
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    var musicPlayerTest = MusicPlayerTest()
-
-}
 
 /*
 data class Music(
