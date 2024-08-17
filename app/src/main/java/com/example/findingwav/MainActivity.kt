@@ -87,7 +87,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var playLists : MutableMap<String, MutableList<Audio>>
     private var testCount : Int = 0
 
-
     fun setSongList() {
         // If have permissions just do it
         if (Environment.isExternalStorageManager())
@@ -125,7 +124,7 @@ class MainActivity : AppCompatActivity() {
         @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setSongList()
+        // setSongList()
         enableEdgeToEdge()
         // Allows to play music when using changeSong()
         var musicPlayer = MediaPlayer()
@@ -527,7 +526,6 @@ fun Player(
         var totalDuration = currentSong.duration.toLong()
         // music progress bar
         TrackSlider(
-            value = sliderPosition.longValue.toFloat(),
             onValueChange = {
                 sliderPosition.longValue = it.toLong()
             },
@@ -675,7 +673,7 @@ fun TrackSliderTime(startTime: String, endTime: String) {
  */
 @Composable
 fun TrackSlider(
-    value: Float,
+    value: Float = 0F,
     onValueChange: (newValue: Float) -> Unit,
     onValueChangeFinished: () -> Unit,
     songDuration: Float
