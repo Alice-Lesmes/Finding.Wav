@@ -89,7 +89,7 @@ class MainActivity : AppCompatActivity() {
     private var songCount : Int = 0
     private lateinit var playLists : MutableMap<String, MutableList<Audio>>
 
-
+    @RequiresApi(Build.VERSION_CODES.R)
     fun setSongList() {
         // If have permissions just do it
         if (Environment.isExternalStorageManager())
@@ -118,6 +118,7 @@ class MainActivity : AppCompatActivity() {
     }
 
 
+        @RequiresApi(Build.VERSION_CODES.R)
         @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -125,7 +126,6 @@ class MainActivity : AppCompatActivity() {
         enableEdgeToEdge()
         // Allows to play music when using changeSong()
         var musicPlayer = MediaPlayer()
-        applicationContext.filesDir.printWriter()
         setContent {
             FindingWavTheme {
                 Scaffold(modifier =
@@ -151,10 +151,14 @@ class MainActivity : AppCompatActivity() {
                     onAccept = {
                         songCount++
                         currentSong = getCurrentSong()
+                        if (musicPlayer.isPlaying) changeSong(currentSong.uri, musicPlayer, applicationContext)
+
                     },
                     onReject = {
                         songCount++
                         currentSong = getCurrentSong()
+                        if (musicPlayer.isPlaying) changeSong(currentSong.uri, musicPlayer, applicationContext)
+
                     }
                 )
 
@@ -164,7 +168,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
     /**To be used to create the .m3u file into files. Maybe works. Needs to change some params*/
-    fun createFile(playlist: MutableList<Audio>/*TODO: CHANGE THIS*/)
+   /* fun createFile(playlist: MutableList<Audio>*//*TODO: CHANGE THIS*//*)
     {
         val path = applicationContext.getExternalFilesDir(null)
 
@@ -173,7 +177,7 @@ class MainActivity : AppCompatActivity() {
         // TODO: actually put playlist content, try a forEach or idk
         playlistFile.appendText("$playListContent")
 
-    }
+    }*/
 
     // Pulled out from the `getAllMusic()` func since it needs to be returned as well
     // And prob helpful to other code stuff
@@ -318,7 +322,6 @@ fun changeSong(songPath : Uri, mediaPlayer: MediaPlayer, context: Context) {
         prepare()
         start()
     }
-    println("try this idk?")
     mediaPlayer.start()
 
 }
@@ -496,7 +499,7 @@ fun Player(
         mutableStateOf(songList[songCount])
     }*/
     val sliderPosition = remember {
-        mutableLongStateOf(0)
+        mutableLongStateOf(currentSong.duration.toLong())
     }
 
     val currentPosition = remember {
@@ -534,14 +537,16 @@ fun Player(
         // accept / reject button
         AcceptReject(
             onAccept = {
-                if (player.isPlaying) changeSong(currentSong.uri, player, context)
-
                 onAccept()
+                println(currentSong)
+
+
             },
             onReject = {
-            if (player.isPlaying) changeSong(currentSong.uri, player, context)
+                onReject()
 
-            onReject()
+                if (player.isPlaying) changeSong(currentSong.uri, player, context)
+
             }
         )
         var totalDuration = currentSong.duration.toLong()
