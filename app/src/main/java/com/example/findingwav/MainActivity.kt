@@ -85,8 +85,8 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var songList : MutableList<Audio>
     private var songCount : Int = 0
-    private lateinit var playLists : MutableMap<String, MutableList<Audio>>
-    private var currentPlaylist : String = "Main"
+    private var currentPlaylistName : String = "Main"
+    private var currentPlaylist : MutableList<Audio> = mutableListOf()
 
     @RequiresApi(Build.VERSION_CODES.R)
     fun setSongList() {
@@ -103,6 +103,8 @@ class MainActivity : AppCompatActivity() {
             songList = getAllMusic()
         }
     }
+
+    private var playLists : MutableMap<String, MutableList<Audio>> = mutableMapOf<String, MutableList<Audio>>(currentPlaylistName to currentPlaylist)
 
     public fun getSongList() : MutableList<Audio>
     {
@@ -135,7 +137,7 @@ class MainActivity : AppCompatActivity() {
 
                 // main ui
                 Title("Finding Wuv", "Playlist Creation Mode", Modifier)
-                Export(currentPlaylist, getPlaylist(currentPlaylist))
+                Export(currentPlaylistName, getPlaylist(currentPlaylistName))
                 var currentSong by remember {
                     mutableStateOf(getCurrentSong())
                 }
@@ -148,7 +150,9 @@ class MainActivity : AppCompatActivity() {
                     makeImage(currentSong.uri),
                     onAccept = {
                         songCount++
-                        currentSong = getCurrentSong()}
+                        currentSong = getCurrentSong()
+                        addSongToPlaylist(currentPlaylist, currentSong)
+                    }
                 )
 
                 
@@ -395,12 +399,14 @@ fun Title(x: String, y: String, modifier: Modifier = Modifier) {
 /** Export the current playlist */
 @Composable
 fun Export(playlistName: String, playlist: MutableList<MainActivity.Audio>?) {
-    Button(onClick = { toM3U(playlistName, playlist) }) {
+    Button(
+        onClick = { toM3U(playlistName, playlist) },
+        modifier = Modifier
+            .padding(start = 10.dp, top = 20.dp)
+    ) {
         Image(
             painter = painterResource(id = R.drawable.export),
             contentDescription = null,
-            modifier = Modifier
-                .padding(start = 10.dp, top = 10.dp)
         )
     }
 
@@ -887,4 +893,6 @@ fun toM3U(playlistName: String, playlist: MutableList<MainActivity.Audio>?) : St
  * */
 fun addSongToPlaylist(playlist: MutableList<MainActivity.Audio>, song: MainActivity.Audio) {
     playlist.add(song)
+    // print playlist
+    println(playlist.toString())
 }
