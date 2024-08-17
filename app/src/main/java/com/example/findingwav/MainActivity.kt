@@ -58,7 +58,26 @@ import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import com.example.findingwav.ui.theme.FindingWavTheme
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.*
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.toSize
+
+
 class MainActivity : ComponentActivity() {
+    @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -99,19 +118,16 @@ class MainActivity : ComponentActivity() {
 
 
                     /* Scaffold(modifier = Modifier.fillMaxSize()) { padding ->
-                * Elem()
-                * } */
-                    /* Surface (parameters) {
-                *   Elem()
-                * }*/
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(4.dp)
-                    )
+                    * Elem()
+                    * } */
+                        /* Surface (parameters) {
+                    *   Elem()
+                    * }*/
+
                     Scaffold(modifier = Modifier.fillMaxSize()) { padding ->
-                        TestGreet(
-                            x = "First Android App",
-                            y = "Second App",
+                        Title(
+                            x = "Finding True.Wav",
+                            y = "Playlist Creation Mode",
                             modifier = Modifier.padding(padding)
                         )
 
@@ -154,10 +170,15 @@ private fun getPlayList(): List<Music> {
 }
 */
 
+/** Mock data of playlist Strings */
+private fun getPlayLists(): List<String> {
+    return listOf("Main", "Second", "Rock", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG")
+}
+
 
 
 @Composable
-fun TestGreet(x: String, y: String, modifier: Modifier = Modifier) {
+fun Title(x: String, y: String, modifier: Modifier = Modifier) {
     // the row is not row-ing
     Column(
         modifier = Modifier
@@ -184,8 +205,8 @@ fun TestGreet(x: String, y: String, modifier: Modifier = Modifier) {
             fontSize = 20.sp,
             textAlign = TextAlign.Center,
             // lineHeight = 10.sp,
-            //modifier = Modifier
-            //    .padding(top = 40.dp)
+            modifier = Modifier
+                .padding(bottom = 10.dp)
 
         )
     }
@@ -194,7 +215,67 @@ fun TestGreet(x: String, y: String, modifier: Modifier = Modifier) {
 @Composable
 fun PlaylistSelect() {
     // dropdown menu for playlist select
+    // Declaring a boolean value to store
+    // the expanded state of the Text Field
+    var mExpanded by remember { mutableStateOf(false) }
+
+    // Create a list of cities
+    val mPlaylist = getPlayLists()
+
+    // Create a string value to store the selected city
+    var mSelectedText by remember { mutableStateOf("") }
+
+    var mTextFieldSize by remember { mutableStateOf(Size.Zero)}
+
+    // Up Icon when expanded and down icon when collapsed
+    val icon = if (mExpanded)
+        Icons.Filled.KeyboardArrowUp
+    else
+        Icons.Filled.KeyboardArrowDown
+
+    Column(Modifier.padding(horizontal = 20.dp)) {
+
+        // Create an Outlined Text Field
+        // with icon and not expanded
+        OutlinedTextField(
+            value = mSelectedText,
+            onValueChange = { mSelectedText = it },
+            modifier = Modifier
+                .fillMaxWidth()
+                .onGloballyPositioned { coordinates ->
+                    // This value is used to assign to
+                    // the DropDown the same width
+                    mTextFieldSize = coordinates.size.toSize()
+                },
+            label = {Text("Playlist")},
+            trailingIcon = {
+                Icon(icon,"contentDescription",
+                    Modifier.clickable { mExpanded = !mExpanded })
+            },
+            readOnly = true
+        )
+
+        // Create a drop-down menu with list of cities,
+        // when clicked, set the Text Field text as the city selected
+        DropdownMenu(
+            expanded = mExpanded,
+            onDismissRequest = { mExpanded = false },
+            modifier = Modifier
+                .width(with(LocalDensity.current){mTextFieldSize.width.toDp()})
+        ) {
+            mPlaylist.forEach { label ->
+                DropdownMenuItem(onClick = {
+                    mSelectedText = label
+                    mExpanded = false
+                },
+                    text = { Text(text = label) }
+                )
+            }
+        }
+    }
 }
+
+
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -205,6 +286,8 @@ fun Player(player: ExoPlayer) {
         modifier = Modifier.padding(top = 150.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        // Playlist selector
+        PlaylistSelect()
         // song title (replace with song name variable
         SongTitle("Song Title")
         // music image
@@ -215,31 +298,7 @@ fun Player(player: ExoPlayer) {
         // accept / reject button
         AcceptReject()
         // music progress bar
-
-        //
-        val sliderPosition = remember {
-            mutableLongStateOf(0)
-        }
-
-        val currentPosition = remember {
-            mutableLongStateOf(0)
-        }
-
-        val totalDuration = remember {
-            mutableLongStateOf(0)
-        }
-
-        TrackSlider(
-            value = sliderPosition.longValue.toFloat(),
-            onValueChange = {
-                sliderPosition.longValue = it.toLong()
-            },
-            onValueChangeFinished = {
-                currentPosition.longValue = sliderPosition.longValue
-                player.seekTo(sliderPosition.longValue)
-            },
-            songDuration = totalDuration.longValue.toFloat()
-        )
+        TrackSliderBar("00:00", "03:02", player)
         // music controls
         Playbar()
     }
@@ -248,7 +307,8 @@ fun Player(player: ExoPlayer) {
 @Composable
 fun SongTitle(title: String) {
     Text(
-        text = title
+        text = title,
+        modifier = Modifier.padding(top = 5.dp)
     )
 }
 
@@ -281,7 +341,8 @@ fun MusicImage(image: Painter) {
 @Composable
 fun ArtistName(name: String) {
     Text(
-        text = name
+        text = name,
+        modifier = Modifier.padding(top = 5.dp)
     )
 }
 
@@ -331,6 +392,42 @@ fun Reject() {
     }
 }
 
+// calculate nanosecond from position?
+@Composable
+fun TrackSliderBar(startTime: String, endTime: String, player: ExoPlayer) {
+    val sliderPosition = remember {
+        mutableLongStateOf(0)
+    }
+
+    val currentPosition = remember {
+        mutableLongStateOf(0)
+    }
+
+    val totalDuration = remember {
+        mutableLongStateOf(0)
+    }
+
+    Row(modifier = Modifier
+        .fillMaxWidth(),
+        horizontalArrangement = Arrangement.Center) {
+        // Text(startTime)
+
+        // the slider is just too long for text to be displayed on the side
+        TrackSlider(
+            value = sliderPosition.longValue.toFloat(),
+            onValueChange = {
+                sliderPosition.longValue = it.toLong()
+            },
+            onValueChangeFinished = {
+                currentPosition.longValue = sliderPosition.longValue
+                player.seekTo(sliderPosition.longValue)
+            },
+            songDuration = totalDuration.longValue.toFloat()
+        )
+        // Text(endTime)
+    }
+}
+
 /**
  * @param
  *  value: The current position of the slider
@@ -364,7 +461,8 @@ fun TrackSlider(
             thumbColor = Color.Black,
             activeTrackColor = Color.DarkGray,
             inactiveTrackColor = Color.Gray,
-        )
+        ),
+        // modifier = Modifier.padding(horizontal = 50.dp)
     )
 }
 
@@ -428,9 +526,9 @@ fun GreetingPreview() {
 
 @Preview(showBackground = true)
 @Composable
-fun TestGreetPreview() {
+fun TitlePreview() {
     FindingWavTheme {
-        TestGreet("First Android App", "Second App")
+        Title("First Android App", "Second App")
     }
 }
 
