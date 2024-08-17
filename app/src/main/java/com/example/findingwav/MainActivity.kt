@@ -13,6 +13,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.provider.Settings
 import androidx.activity.compose.setContent
@@ -74,6 +75,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
+import androidx.core.app.ActivityCompat.startActivity
+import androidx.core.app.ActivityCompat.startActivityForResult
 import androidx.core.graphics.drawable.toBitmap
 import androidx.core.graphics.drawable.toDrawable
 import com.example.findingwav.MainActivity.Audio
@@ -894,12 +897,15 @@ fun testM3U() {
 // context is applicationContext
 fun createFile(playlistName: String, playlist: String, context: Context/*TODO: CHANGE THIS*/)
 {
+    // Request code for creating a PDF document.
     val path = context.getExternalFilesDir(null)
-
+    File(path, "$playlistName" + ".m3u").delete()
+    println("Path: " + path)
     // TODO: Add name of playlist file
-    val playlistFile = File(path, "$playlistName.m3u")
+    var playlistFile = File(path, "$playlistName" + ".m3u")
     // TODO: actually put playlist content, try a forEach or idk
-    playlistFile.appendText("$playlist")
+
+    playlistFile.writeText("$playlist")
 
 }
 
@@ -922,13 +928,13 @@ fun toM3U(playlistName: String, playlist: MutableList<MainActivity.Audio>?, cont
     var out: StringBuilder = StringBuilder()
 
     out.append("#EXTM3U\n")
+
     if (playlist != null) {
         for (song in playlist) {
             out.append("#EXTINF:").append(song.duration).append(",").append(song.artist).append(" - ").append(song.name).append("\n")
             out.append(song.uri)
         }
     }
-
     // attempt to write locally to downloads?
 //    val filePath: String = "Playlists/$playlistName"
 //    val file = File(filePath)
