@@ -143,9 +143,7 @@ class MainActivity : AppCompatActivity() {
 
 
                 Player(musicPlayer,
-                    songList,
                     currentSong,
-                    4,
                     applicationContext,
                     makeImage(currentSong.uri),
                     onAccept = {
@@ -483,9 +481,7 @@ fun PlaylistSelect() {
 @Composable
 fun Player(
     player: MediaPlayer,
-    songList: MutableList<MainActivity.Audio>,
     currentSong: MainActivity.Audio,
-    initSongCount: Int,
     context: Context,
     image: Bitmap,
     onAccept: () -> Unit,
@@ -645,7 +641,7 @@ fun AcceptReject(onAccept : () -> Unit, onReject: () -> Unit) {
 fun Accept(onAccept: () -> Unit) {
     Button(onClick =  {
         onAccept()
-                     },
+    },
         colors = ButtonColors(Color.Green, Color.Green, Color.Green, Color.Green),
         modifier = Modifier
             .width(70.dp)
