@@ -22,11 +22,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.materialIcon
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -43,12 +47,16 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 
 import androidx.compose.ui.unit.sp
+import androidx.media3.exoplayer.ExoPlayer
 import com.example.findingwav.ui.theme.FindingWavTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        val player = ExoPlayer.Builder(this).build()
+
         setContent {
             FindingWavTheme {
                 var getMusicClass = MusicPlayerTest()
@@ -102,7 +110,7 @@ class MainActivity : ComponentActivity() {
                         )
 
                     }
-                    Player()
+                    Player(player)
                 }
             }
         }
@@ -159,8 +167,9 @@ fun PlaylistSelect() {
 }
 
 @Composable
-fun Player() {
+fun Player(player: ExoPlayer) {
     var modifier = Modifier.fillMaxWidth()
+
 
     Column (
         modifier = Modifier.padding(top = 150.dp),
@@ -174,7 +183,33 @@ fun Player() {
         ArtistName()
         // accept / reject button
         AcceptReject()
-        // music playing bar
+        // music progress bar
+
+        //
+        val sliderPosition = remember {
+            mutableLongStateOf(0)
+        }
+
+        val currentPosition = remember {
+            mutableLongStateOf(0)
+        }
+
+        val totalDuration = remember {
+            mutableLongStateOf(0)
+        }
+
+        TrackSlider(
+            value = sliderPosition.longValue.toFloat(),
+            onValueChange = {
+                sliderPosition.longValue = it.toLong()
+            },
+            onValueChangeFinished = {
+                currentPosition.longValue = sliderPosition.longValue
+                player.seekTo(sliderPosition.longValue)
+            },
+            songDuration = totalDuration.longValue.toFloat()
+        )
+        // music controls
         Playbar()
     }
 }
@@ -242,7 +277,8 @@ fun AcceptReject() {
 fun Accept() {
     Button(onClick = { /*TODO*/ },
         colors = ButtonColors(Color.Green, Color.Green, Color.Green, Color.Green),
-        modifier = Modifier.width(70.dp)
+        modifier = Modifier
+            .width(70.dp)
             .height(70.dp)) {
         Image(painter = painterResource(id = R.drawable.check),
             contentDescription = null,
@@ -256,12 +292,52 @@ fun Reject() {
     Button(
         onClick = { /*TODO*/ },
         colors = ButtonColors(Color.Red, Color.Red, Color.Red, Color.Red),
-        modifier = Modifier.width(70.dp).height(70.dp)
+        modifier = Modifier
+            .width(70.dp)
+            .height(70.dp)
     ) {
         Image(painter = painterResource(id = R.drawable.reject), contentDescription = null)
         // make bg colour green
     }
 }
+
+/**
+ * @param
+ *  value: The current position of the slider
+ *  onValueChange: A lambda function that is called when the slider value changes.
+ *      For example, when the user scrolling the slider. That’s why, we update our slider current value
+ *      with the new one.
+ *  onValueChangeFinished: A lambda function that is called when the user finishes changing the
+ *      slider value. There are two cases to call this function. One is a time when the user leave the
+ *      thumb of slider and the other is clicking on any point on the slider.
+ *  songDuration: The total duration of the song or media being controlled by the slider.
+ */
+@Composable
+fun TrackSlider(
+    value: Float,
+    onValueChange: (newValue: Float) -> Unit,
+    onValueChangeFinished: () -> Unit,
+    songDuration: Float
+) {
+    Slider(
+        value = value,
+        onValueChange = {
+            onValueChange(it)
+        },
+        onValueChangeFinished = {
+
+            onValueChangeFinished()
+
+        },
+        valueRange = 0f..songDuration,
+        colors = SliderDefaults.colors(
+            thumbColor = Color.Black,
+            activeTrackColor = Color.DarkGray,
+            inactiveTrackColor = Color.Gray,
+        )
+    )
+}
+
 
 @Composable
 fun Playbar() {
@@ -279,21 +355,30 @@ fun Playbar() {
 
 @Composable
 fun PlayButton() {
-    Button(onClick = { /*TODO*/ }) {
+    Button(
+        onClick = { /*TODO*/ },
+        colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.0F))
+    ) {
         Image(painter = painterResource(id = R.drawable.play), contentDescription = null)
     }
 }
 
 @Composable
 fun PreviousButton() {
-    Button(onClick = { /*TODO*/ }) {
+    Button(
+        onClick = { println("bonjour") },
+        colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.0F))
+        ) {
         Image(painter = painterResource(id = R.drawable.previous), contentDescription = null)
     }
 }
 
 @Composable
 fun NextButton() {
-    Button(onClick = { /*TODO*/ }) {
+    Button(
+        onClick = { /*TODO*/ },
+        colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.0F))
+    ) {
         Image(painter = painterResource(id = R.drawable.next), contentDescription = null)
 
     }
