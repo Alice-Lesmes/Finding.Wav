@@ -2,6 +2,7 @@ package com.example.findingwav
 
 
 import android.content.ContentUris
+import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -75,9 +76,13 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
 import androidx.core.graphics.drawable.toBitmap
 import androidx.core.graphics.drawable.toDrawable
+import com.example.findingwav.MainActivity.Audio
 
 import com.example.findingwav.ui.theme.FindingWavTheme
 import java.io.File
+
+import java.io.FileOutputStream
+
 import java.util.concurrent.TimeUnit
 
 
@@ -127,7 +132,7 @@ class MainActivity : AppCompatActivity() {
         enableEdgeToEdge()
         // Allows to play music when using changeSong()
         var musicPlayer = MediaPlayer()
-
+        applicationContext.filesDir.printWriter()
         setContent {
             FindingWavTheme {
                 Scaffold(modifier =
@@ -137,7 +142,7 @@ class MainActivity : AppCompatActivity() {
 
                 // main ui
                 Title("Finding Wuv", "Playlist Creation Mode", Modifier)
-                Export(currentPlaylistName, getPlaylist(currentPlaylistName))
+                Export(currentPlaylistName, getPlaylist(currentPlaylistName), applicationContext)
                 var currentSong by remember {
                     mutableStateOf(getCurrentSong())
                 }
@@ -146,12 +151,18 @@ class MainActivity : AppCompatActivity() {
 
                 Player(musicPlayer,
                     songList,
-                    currentSong, 4,
+                    currentSong,
+                    4,
+                    applicationContext,
                     makeImage(currentSong.uri),
                     onAccept = {
                         songCount++
                         currentSong = getCurrentSong()
                         addSongToPlaylist(currentPlaylist, currentSong)
+                    },
+                    onReject = {
+                        songCount++
+                        currentSong = getCurrentSong()
                     }
                 )
 
@@ -161,25 +172,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    fun changeSong(songPath : Uri, mediaPlayer: MediaPlayer) {
-      /**
-      * This inits a music player and plays the song specified by the file path
-      */
-        mediaPlayer.apply {
-            setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                    .setUsage(AudioAttributes.USAGE_MEDIA)
-                    .build()
-            )
-            setDataSource(applicationContext, songPath)
-            prepare()
-            start()
-        }
-        println("try this idk?")
-        mediaPlayer.start()
-
-    }
 
     // Pulled out from the `getAllMusic()` func since it needs to be returned as well
     // And prob helpful to other code stuff
@@ -281,14 +273,14 @@ class MainActivity : AppCompatActivity() {
         }
         catch (e: Exception){
             println("Ooops no Album Image")
-            return R.drawable.reject.toDrawable().toBitmap(width = 512, height = 512)
+            return R.drawable.musik.toDrawable().toBitmap(width = 256, height = 256)
         }
         if (length == 0 || rawAlbum == null)
         {
-            return R.drawable.no_album.toDrawable().toBitmap(width = 512, height = 512)
+            return R.drawable.musik.toDrawable().toBitmap(width = 256, height = 256)
         }
         var bitmap = BitmapFactory.decodeByteArray(rawAlbum, 0, length)
-        if (bitmap == null) return R.drawable.no_album.toDrawable().toBitmap(width = 512, height = 512)
+        if (bitmap == null) return R.drawable.musik.toDrawable().toBitmap(width = 256, height = 256)
         return bitmap
 
     }
@@ -308,7 +300,26 @@ class MainActivity : AppCompatActivity() {
 // this could be useful (making the basic music bar)
 // https://www.digitalocean.com/community/tutorials/android-media-player-song-with-seekbar
 
+fun changeSong(songPath : Uri, mediaPlayer: MediaPlayer, context: Context) {
+    /**
+     * This inits a music player and plays the song specified by the file path
+     */
+    mediaPlayer.reset()
+    mediaPlayer.apply {
+        setAudioAttributes(
+            AudioAttributes.Builder()
+                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                .setUsage(AudioAttributes.USAGE_MEDIA)
+                .build()
+        )
+        setDataSource(context, songPath)
+        prepare()
+        start()
+    }
+    println("try this idk?")
+    mediaPlayer.start()
 
+}
 
 
 data class Music(
@@ -396,11 +407,12 @@ fun Title(x: String, y: String, modifier: Modifier = Modifier) {
     }
 }
 
+
 /** Export the current playlist */
 @Composable
-fun Export(playlistName: String, playlist: MutableList<MainActivity.Audio>?) {
+fun Export(playlistName: String, playlist: MutableList<MainActivity.Audio>?, context: Context) {
     Button(
-        onClick = { toM3U(playlistName, playlist) },
+        onClick = { toM3U(playlistName, playlist, context) },
         modifier = Modifier
             .padding(start = 10.dp, top = 20.dp)
     ) {
@@ -411,6 +423,7 @@ fun Export(playlistName: String, playlist: MutableList<MainActivity.Audio>?) {
     }
 
 }
+
 
 @Composable
 fun PlaylistSelect() {
@@ -484,8 +497,10 @@ fun Player(
     songList: MutableList<MainActivity.Audio>,
     currentSong: MainActivity.Audio,
     initSongCount: Int,
+    context: Context,
     image: Bitmap,
-    onAccept: () -> Unit) {
+    onAccept: () -> Unit,
+    onReject: () -> Unit) {
     var modifier = Modifier.fillMaxWidth()
     // Get currentSong as Audio class
    /* var songCount by remember {
@@ -531,15 +546,18 @@ fun Player(
 
         ArtistName(currentSong.artist)
         // accept / reject button
-        AcceptReject(onAccept = {
-            onAccept()
-            /*songCount++
-            currentSong = songList[songCount]*/
-            println(currentSong)
-                                },
+        AcceptReject(
+            onAccept = {
+                if (player.isPlaying) changeSong(currentSong.uri, player, context)
+
+                onAccept()
+            },
             onReject = {
-            //TODO: reject logic, if wanted
-        })
+            if (player.isPlaying) changeSong(currentSong.uri, player, context)
+
+            onReject()
+            }
+        )
         var totalDuration = currentSong.duration.toLong()
         // music progress bar
         TrackSlider(
@@ -566,7 +584,7 @@ fun Player(
         }
         TrackSliderTime("00:00", "$minutesString:$secondsString")
         // music controls
-        Playbar()
+        Playbar(currentSong, player, context)
     }
 }
 
@@ -651,7 +669,9 @@ fun Accept(onAccept: () -> Unit) {
 @Composable
 fun Reject(onReject: () -> Unit) {
     Button(
-        onClick = { onReject()},
+        onClick = {
+
+            onReject()},
         colors = ButtonColors(Color.Red, Color.Red, Color.Red, Color.Red),
         modifier = Modifier
             .width(70.dp)
@@ -720,7 +740,7 @@ fun TrackSlider(
 
 
 @Composable
-fun Playbar() {
+fun Playbar(currentSong: MainActivity.Audio, mediaPlayer: MediaPlayer, context: Context) {
     Row (
         modifier = Modifier
             .padding(horizontal = 20.dp)
@@ -728,19 +748,35 @@ fun Playbar() {
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         PreviousButton()
-        PlayButton()
+        PlayButton(currentSong.uri, mediaPlayer, context)
         NextButton()
     }
 }
 
 @Composable
-fun PlayButton() {
-    Button(
-        onClick = {  },
-        colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.0F))
-    ) {
-        Image(painter = painterResource(id = R.drawable.play), contentDescription = null)
+fun PlayButton(songPath : Uri, mediaPlayer: MediaPlayer, context: Context, ) {
+    var playing by remember {
+        mutableStateOf(mediaPlayer.isPlaying)
     }
+    if (!playing)
+    {
+        Button(
+            onClick = { changeSong(songPath, mediaPlayer, context); playing = true  },
+            colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.0F))
+        ) {
+            Image(painter = painterResource(id = R.drawable.play), contentDescription = null)
+        }
+    }
+    else
+    {
+        Button(
+            onClick = { mediaPlayer.pause(); playing = false  },
+            colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.0F))
+        ) {
+            Image(painter = painterResource(id = R.drawable.pause), contentDescription = null, contentScale = ContentScale.FillBounds )
+        }
+    }
+
 }
 
 @Composable
@@ -848,7 +884,22 @@ fun testM3U() {
     var playlist: MutableList<MainActivity.Audio> = mutableListOf<MainActivity.Audio>()
     playlist.add(testSong)
 
-    println(toM3U("Main", playlist))
+    //println(toM3U("Main", playlist))
+}
+
+
+/**To be used to create the .m3u file into files. Maybe works. Needs to change some params*/
+// pass in playlistName
+// context is applicationContext
+fun createFile(playlistName: String, playlist: String, context: Context/*TODO: CHANGE THIS*/)
+{
+    val path = context.getExternalFilesDir(null)
+
+    // TODO: Add name of playlist file
+    val playlistFile = File(path, "$playlistName.m3u")
+    // TODO: actually put playlist content, try a forEach or idk
+    playlistFile.appendText("$playlist")
+
 }
 
 
@@ -865,7 +916,7 @@ fun testM3U() {
  *
  *
  * */
-fun toM3U(playlistName: String, playlist: MutableList<MainActivity.Audio>?) : String {
+fun toM3U(playlistName: String, playlist: MutableList<MainActivity.Audio>?, context: Context) : String {
     // grab a playlist
     var out: StringBuilder = StringBuilder()
 
@@ -878,10 +929,13 @@ fun toM3U(playlistName: String, playlist: MutableList<MainActivity.Audio>?) : St
     }
 
     // attempt to write locally to downloads?
-    val filePath: String = "Playlists/$playlistName"
-    val file = File(filePath)
+//    val filePath: String = "Playlists/$playlistName"
+//    val file = File(filePath)
+//
+//    file.writeText(out.toString())
+    createFile(playlistName, out.toString(), context)
 
-    file.writeText(out.toString())
+
     println("Line written successfully")
 
     return out.toString()
