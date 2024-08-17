@@ -93,17 +93,19 @@ class MainActivity : AppCompatActivity() {
     @RequiresApi(Build.VERSION_CODES.R)
     fun setSongList() {
         // If have permissions just do it
-        if (Environment.isExternalStorageManager())
-        {
-            songList = getAllMusic()
-        }
-        else
-        {
-            startActivity(
-                Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
-            )
-            songList = getAllMusic()
-        }
+        // uncomment this when you are done building ui
+//        if (Environment.isExternalStorageManager())
+//        {
+//            songList = getAllMusic()
+//        }
+//        else
+//        {
+//        startActivity(
+//            Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+//        )
+        // I can access everything (including random ah files)
+        songList = getAllMusic()
+        //}
     }
 
     private var playLists : MutableMap<String, MutableList<Audio>> = mutableMapOf<String, MutableList<Audio>>(currentPlaylistName to currentPlaylist)
@@ -440,7 +442,10 @@ fun Edit(playlist: MutableList<Audio>?) {
 
     var mTextFieldSize by remember { mutableStateOf(Size.Zero)}
 
-    Button(onClick = { mExpanded = true }) {
+    Button(onClick = { mExpanded = !mExpanded },
+        modifier = Modifier
+            .padding(start = 280.dp, top = 20.dp)
+            .onGloballyPositioned { coordinates -> mTextFieldSize = coordinates.size.toSize() * 5F }) {
         Image(painter = painterResource(id = R.drawable.edit), contentDescription = null)
     }
 
