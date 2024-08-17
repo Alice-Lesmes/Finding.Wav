@@ -136,6 +136,9 @@ class MainActivity : AppCompatActivity() {
         enableEdgeToEdge()
         // Allows to play music when using changeSong()
         var musicPlayer = MediaPlayer()
+
+
+
         setContent {
             FindingWavTheme {
                 Scaffold(modifier =
@@ -151,6 +154,13 @@ class MainActivity : AppCompatActivity() {
                 }
 
 
+                musicPlayer.setOnCompletionListener {
+                    println("finished song: " + currentSong.name)
+                    addSongToPlaylist(currentPlaylist, currentSong)
+                    songCount++
+                    currentSong = getCurrentSong()
+                    changeSong(currentSong.uri, musicPlayer, applicationContext)
+                }
 
                 Player(musicPlayer,
                     currentSong,
