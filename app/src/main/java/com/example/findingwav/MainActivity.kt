@@ -1,6 +1,7 @@
 package com.example.findingwav
 
 
+import android.content.ContentResolver
 import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
@@ -61,6 +62,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Size
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.Painter
@@ -77,14 +79,17 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
 import androidx.core.app.ActivityCompat.startActivity
 import androidx.core.app.ActivityCompat.startActivityForResult
+import androidx.core.graphics.PathUtils
 import androidx.core.graphics.drawable.toBitmap
 import androidx.core.graphics.drawable.toDrawable
 import com.example.findingwav.MainActivity.Audio
 
 import com.example.findingwav.ui.theme.FindingWavTheme
+import java.io.BufferedReader
 import java.io.File
 
 import java.io.FileOutputStream
+import java.io.InputStreamReader
 
 import java.util.concurrent.TimeUnit
 
@@ -926,7 +931,8 @@ fun testM3U() {
 fun createFile(playlistName: String, playlist: String, context: Context/*TODO: CHANGE THIS*/)
 {
     // Request code for creating a PDF document.
-    val path = context.getExternalFilesDir(null)
+    //val path = context.getExternalFilesDir(null)
+    val path = Environment.getExternalStoragePublicDirectory("Music")
     File(path, "$playlistName" + ".m3u").delete()
     println("Path: " + path)
     // TODO: Add name of playlist file
@@ -956,11 +962,11 @@ fun toM3U(playlistName: String, playlist: MutableList<MainActivity.Audio>?, cont
     var out: StringBuilder = StringBuilder()
 
     out.append("#EXTM3U\n")
-
+    val path = Environment.getExternalStoragePublicDirectory("Music")
     if (playlist != null) {
         for (song in playlist) {
-            out.append("#EXTINF:").append(song.duration).append(",").append(song.artist).append(" - ").append(song.name).append("\n")
-            out.append(song.uri)
+            out.append("#EXTINF:").append(song.duration / 1000).append(",").append(song.artist).append(" - ").append(song.name).append("\n")
+            out.append(path).append("/").append(song.name).append("\n")
         }
     }
     // attempt to write locally to downloads?
