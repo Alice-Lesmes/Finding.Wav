@@ -16,6 +16,7 @@ import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
 import android.provider.Settings
+import android.text.style.BackgroundColorSpan
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.RequiresApi
@@ -51,6 +52,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -84,6 +86,10 @@ import androidx.core.graphics.drawable.toDrawable
 import com.example.findingwav.MainActivity.Audio
 
 import com.example.findingwav.ui.theme.FindingWavTheme
+import com.github.theapache64.twyper.SwipedOutDirection
+import com.github.theapache64.twyper.Twyper
+import com.github.theapache64.twyper.TwyperController
+import com.github.theapache64.twyper.rememberTwyperController
 import java.io.BufferedReader
 import java.io.File
 
@@ -177,7 +183,7 @@ class MainActivity : AppCompatActivity() {
                         addSongToPlaylist(currentPlaylist, currentSong)
                     },
                     onReject = {
-                        nextSong()
+                        currentSong = nextSong()
                         if (musicPlayer.isPlaying) changeSong(currentSong.uri, musicPlayer, applicationContext)
 
                     },
@@ -260,13 +266,13 @@ class MainActivity : AppCompatActivity() {
             selectionArgs,
             sortOrder
         )
-            query?.use { cursor ->
-                // Only assign once (i.e caching), the columns
-                val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
-                val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
-                val albumColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
-                val artistColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
-                val durationColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
+        query?.use { cursor ->
+            // Only assign once (i.e caching), the columns
+            val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
+            val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
+            val albumColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
+            val artistColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
+            val durationColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
 
             while (cursor.moveToNext()) {
 
@@ -596,6 +602,8 @@ fun Player(
     var albumImage by remember {
         mutableStateOf(image)
     }
+    val twyperController = rememberTwyperController()
+
 
     Column (
         modifier = Modifier.padding(top = 110.dp),
@@ -605,21 +613,24 @@ fun Player(
         PlaylistSelect()
         // song title (replace with song name variable
         SongTitle(currentSong.name)
-        // music image
-        MusicImage(image)
-        // artist name
-
-        ArtistName(currentSong.artist)
+        // Card swiping view
+        CardSwipe(artist = currentSong.artist,
+            image = image,
+            twyperController = twyperController,
+            onAccept =  { onAccept() },
+            onReject = { onReject() },
+            items = listOf(currentSong)
+            )
         // accept / reject button
         AcceptReject(
             onAccept = {
-                onAccept()
                 println(currentSong)
+                twyperController.swipeRight()
 
 
             },
             onReject = {
-                onReject()
+                twyperController.swipeLeft()
 
                 if (player.isPlaying) changeSong(currentSong.uri, player, context)
 
@@ -694,12 +705,42 @@ fun MusicImage(image: Bitmap) {
 }
 
 @Composable
+fun CardSwipe(image: Bitmap, artist: String, twyperController: TwyperController,
+              onAccept: () -> Unit,
+              onReject: () -> Unit, items : List<Any>) {
+
+
+    Box(modifier = Modifier.background(color = Color.Transparent)) {
+
+        Twyper(items = items, twyperController = twyperController, onItemRemoved = {
+                item, direction ->
+            if (direction == SwipedOutDirection.LEFT) {
+                println("Swiped Left: Rejecting")
+                onReject()
+            }
+            else {
+                println("Swiped Right: Accepting")
+                onAccept()
+            }
+        }) {
+            Column {
+                MusicImage(image = image)
+
+                ArtistName(name = artist)
+            }
+        }
+
+    }
+
+
+    
+}
+
+@Composable
 fun ArtistName(name: String) {
     Text(
         text = name,
-        modifier = Modifier.padding(top = 5.dp),
-        color = Color.White
-    )
+        modifier = Modifier.padding(top = 5.dp)    )
 }
 
 @Composable
