@@ -14,6 +14,9 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.os.Handler
+import android.os.Looper
+import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.provider.Settings
 import android.text.style.BackgroundColorSpan
@@ -50,6 +53,8 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffectScope
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -90,12 +95,16 @@ import com.github.theapache64.twyper.SwipedOutDirection
 import com.github.theapache64.twyper.Twyper
 import com.github.theapache64.twyper.TwyperController
 import com.github.theapache64.twyper.rememberTwyperController
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.io.BufferedReader
 import java.io.File
 
 
 import java.io.FileOutputStream
 import java.io.InputStreamReader
+import java.util.Timer
 
 import java.util.concurrent.TimeUnit
 
@@ -562,6 +571,7 @@ fun PlaylistSelect() {
 
 
 
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun Player(
@@ -584,9 +594,7 @@ fun Player(
         mutableLongStateOf(currentSong.duration.toLong())
     }
 
-    val currentPosition = remember {
-        mutableLongStateOf(0)
-    }
+
 
     /*val totalDuration = remember {
         mutableLongStateOf(currentSong.duration.toLong())
@@ -626,26 +634,47 @@ fun Player(
             onAccept = {
                 println(currentSong)
                 twyperController.swipeRight()
-
-
             },
             onReject = {
                 twyperController.swipeLeft()
-
                 if (player.isPlaying) changeSong(currentSong.uri, player, context)
-
             }
         )
         var totalDuration = currentSong.duration.toLong()
+
+        val mainHandler = Handler(Looper.getMainLooper())
+
+
+        var currentTime by remember {
+            mutableLongStateOf(player.currentPosition.toLong())
+        }
+        mainHandler.post(object : Runnable {
+            override fun run() {
+               val context = this
+               CoroutineScope(Dispatchers.IO).launch {
+                   currentTime = player.currentPosition.toLong()
+                   // Reduce delayMillis to make smoother, but obv cost more on this thread)
+                   // 1s seems good to not make seeking all laggy
+                   mainHandler.postDelayed(context, 1000)
+               }
+
+            }
+        })
+
+
+
         // music progress bar
         TrackSlider(
-            value = sliderPosition.longValue.toFloat(),
+            value = currentTime.toFloat(),
             onValueChange = {
-                sliderPosition.longValue = it.toLong()
+                currentTime = it.toLong()
+                // Needs to be 'previous' so if dragged to end doesn't crash
+                player.seekTo(it.toLong(), MediaPlayer.SEEK_PREVIOUS_SYNC)
+
             },
             onValueChangeFinished = {
-                currentPosition.longValue = sliderPosition.longValue
-                player.seekTo(sliderPosition.longValue.toInt())
+                //currentTime = sliderPosition.longValue
+                //player.seekTo(sliderPosition.longValue.toInt())
             },
             songDuration = totalDuration.toFloat()
         )
