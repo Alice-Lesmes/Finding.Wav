@@ -78,6 +78,8 @@ import androidx.core.graphics.drawable.toBitmap
 import androidx.core.graphics.drawable.toDrawable
 
 import com.example.findingwav.ui.theme.FindingWavTheme
+import java.io.File
+import java.io.FileOutputStream
 import java.util.concurrent.TimeUnit
 
 
@@ -123,7 +125,7 @@ class MainActivity : AppCompatActivity() {
         enableEdgeToEdge()
         // Allows to play music when using changeSong()
         var musicPlayer = MediaPlayer()
-
+        applicationContext.filesDir.printWriter()
         setContent {
             FindingWavTheme {
                 Scaffold(modifier =
@@ -148,7 +150,12 @@ class MainActivity : AppCompatActivity() {
                     makeImage(currentSong.uri),
                     onAccept = {
                         songCount++
-                        currentSong = getCurrentSong()}
+                        currentSong = getCurrentSong()
+                    },
+                    onReject = {
+                        songCount++
+                        currentSong = getCurrentSong()
+                    }
                 )
 
                 
@@ -156,8 +163,17 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
+    /**To be used to create the .m3u file into files. Maybe works. Needs to change some params*/
+    fun createFile(playlist: MutableList<Audio>/*TODO: CHANGE THIS*/)
+    {
+        val path = applicationContext.getExternalFilesDir(null)
 
+        // TODO: Add name of playlist file
+        val playlistFile = File(path, "$playListName" + ".m3u")
+        // TODO: actually put playlist content, try a forEach or idk
+        playlistFile.appendText("$playListContent")
 
+    }
 
     // Pulled out from the `getAllMusic()` func since it needs to be returned as well
     // And prob helpful to other code stuff
@@ -259,14 +275,14 @@ class MainActivity : AppCompatActivity() {
         }
         catch (e: Exception){
             println("Ooops no Album Image")
-            return R.drawable.reject.toDrawable().toBitmap(width = 512, height = 512)
+            return R.drawable.musik.toDrawable().toBitmap(width = 256, height = 256)
         }
         if (length == 0 || rawAlbum == null)
         {
-            return R.drawable.no_album.toDrawable().toBitmap(width = 512, height = 512)
+            return R.drawable.musik.toDrawable().toBitmap(width = 256, height = 256)
         }
         var bitmap = BitmapFactory.decodeByteArray(rawAlbum, 0, length)
-        if (bitmap == null) return R.drawable.no_album.toDrawable().toBitmap(width = 512, height = 512)
+        if (bitmap == null) return R.drawable.musik.toDrawable().toBitmap(width = 256, height = 256)
         return bitmap
 
     }
@@ -393,6 +409,8 @@ fun Title(x: String, y: String, modifier: Modifier = Modifier) {
     }
 }
 
+
+
 @Composable
 fun PlaylistSelect() {
     // dropdown menu for playlist select
@@ -467,7 +485,8 @@ fun Player(
     initSongCount: Int,
     context: Context,
     image: Bitmap,
-    onAccept: () -> Unit) {
+    onAccept: () -> Unit,
+    onReject: () -> Unit) {
     var modifier = Modifier.fillMaxWidth()
     // Get currentSong as Audio class
    /* var songCount by remember {
@@ -515,12 +534,15 @@ fun Player(
         // accept / reject button
         AcceptReject(
             onAccept = {
-            onAccept()
+                if (player.isPlaying) changeSong(currentSong.uri, player, context)
+
+                onAccept()
             },
             onReject = {
-            //TODO: reject logic, if wanted
-            },
-            player = player
+            if (player.isPlaying) changeSong(currentSong.uri, player, context)
+
+            onReject()
+            }
         )
         var totalDuration = currentSong.duration.toLong()
         // music progress bar
@@ -600,7 +622,7 @@ fun ArtistName(name: String) {
 }
 
 @Composable
-fun AcceptReject(onAccept : () -> Unit, onReject: () -> Unit, player: MediaPlayer) {
+fun AcceptReject(onAccept : () -> Unit, onReject: () -> Unit) {
     Row(
         modifier = Modifier
             .width(200.dp)
@@ -609,15 +631,14 @@ fun AcceptReject(onAccept : () -> Unit, onReject: () -> Unit, player: MediaPlaye
 
     ) {
         Reject(onReject)
-        Accept(onAccept, player)
+        Accept(onAccept)
     }
 
 }
 
 @Composable
-fun Accept(onAccept: () -> Unit, mediaPlayer: MediaPlayer) {
+fun Accept(onAccept: () -> Unit) {
     Button(onClick =  {
-        mediaPlayer.pause()
         onAccept()
                      },
         colors = ButtonColors(Color.Green, Color.Green, Color.Green, Color.Green),
@@ -634,7 +655,9 @@ fun Accept(onAccept: () -> Unit, mediaPlayer: MediaPlayer) {
 @Composable
 fun Reject(onReject: () -> Unit) {
     Button(
-        onClick = { onReject()},
+        onClick = {
+
+            onReject()},
         colors = ButtonColors(Color.Red, Color.Red, Color.Red, Color.Red),
         modifier = Modifier
             .width(70.dp)
@@ -736,7 +759,7 @@ fun PlayButton(songPath : Uri, mediaPlayer: MediaPlayer, context: Context, ) {
             onClick = { mediaPlayer.pause(); playing = false  },
             colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.0F))
         ) {
-            Image(painter = painterResource(id = R.drawable.reject /*TODO: PAUSE ICON*/), contentDescription = null)
+            Image(painter = painterResource(id = R.drawable.pause), contentDescription = null, contentScale = ContentScale.FillBounds )
         }
     }
 
