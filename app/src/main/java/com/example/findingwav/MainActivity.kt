@@ -2,6 +2,7 @@ package com.example.findingwav
 
 
 import android.content.ContentUris
+import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -141,7 +142,9 @@ class MainActivity : AppCompatActivity() {
 
                 Player(musicPlayer,
                     songList,
-                    currentSong, 4,
+                    currentSong,
+                    4,
+                    applicationContext,
                     makeImage(currentSong.uri),
                     onAccept = {
                         songCount++
@@ -154,25 +157,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    fun changeSong(songPath : Uri, mediaPlayer: MediaPlayer) {
-      /**
-      * This inits a music player and plays the song specified by the file path
-      */
-        mediaPlayer.apply {
-            setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                    .setUsage(AudioAttributes.USAGE_MEDIA)
-                    .build()
-            )
-            setDataSource(applicationContext, songPath)
-            prepare()
-            start()
-        }
-        println("try this idk?")
-        mediaPlayer.start()
 
-    }
 
     // Pulled out from the `getAllMusic()` func since it needs to be returned as well
     // And prob helpful to other code stuff
@@ -301,7 +286,26 @@ class MainActivity : AppCompatActivity() {
 // this could be useful (making the basic music bar)
 // https://www.digitalocean.com/community/tutorials/android-media-player-song-with-seekbar
 
+fun changeSong(songPath : Uri, mediaPlayer: MediaPlayer, context: Context) {
+    /**
+     * This inits a music player and plays the song specified by the file path
+     */
+    mediaPlayer.reset()
+    mediaPlayer.apply {
+        setAudioAttributes(
+            AudioAttributes.Builder()
+                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                .setUsage(AudioAttributes.USAGE_MEDIA)
+                .build()
+        )
+        setDataSource(context, songPath)
+        prepare()
+        start()
+    }
+    println("try this idk?")
+    mediaPlayer.start()
 
+}
 
 
 data class Music(
@@ -461,6 +465,7 @@ fun Player(
     songList: MutableList<MainActivity.Audio>,
     currentSong: MainActivity.Audio,
     initSongCount: Int,
+    context: Context,
     image: Bitmap,
     onAccept: () -> Unit) {
     var modifier = Modifier.fillMaxWidth()
@@ -508,15 +513,15 @@ fun Player(
 
         ArtistName(currentSong.artist)
         // accept / reject button
-        AcceptReject(onAccept = {
+        AcceptReject(
+            onAccept = {
             onAccept()
-            /*songCount++
-            currentSong = songList[songCount]*/
-            println(currentSong)
-                                },
+            },
             onReject = {
             //TODO: reject logic, if wanted
-        })
+            },
+            player = player
+        )
         var totalDuration = currentSong.duration.toLong()
         // music progress bar
         TrackSlider(
@@ -543,7 +548,7 @@ fun Player(
         }
         TrackSliderTime("00:00", "$minutesString:$secondsString")
         // music controls
-        Playbar()
+        Playbar(currentSong, player, context)
     }
 }
 
@@ -595,7 +600,7 @@ fun ArtistName(name: String) {
 }
 
 @Composable
-fun AcceptReject(onAccept : () -> Unit, onReject: () -> Unit) {
+fun AcceptReject(onAccept : () -> Unit, onReject: () -> Unit, player: MediaPlayer) {
     Row(
         modifier = Modifier
             .width(200.dp)
@@ -604,14 +609,15 @@ fun AcceptReject(onAccept : () -> Unit, onReject: () -> Unit) {
 
     ) {
         Reject(onReject)
-        Accept(onAccept)
+        Accept(onAccept, player)
     }
 
 }
 
 @Composable
-fun Accept(onAccept: () -> Unit) {
+fun Accept(onAccept: () -> Unit, mediaPlayer: MediaPlayer) {
     Button(onClick =  {
+        mediaPlayer.pause()
         onAccept()
                      },
         colors = ButtonColors(Color.Green, Color.Green, Color.Green, Color.Green),
@@ -697,7 +703,7 @@ fun TrackSlider(
 
 
 @Composable
-fun Playbar() {
+fun Playbar(currentSong: MainActivity.Audio, mediaPlayer: MediaPlayer, context: Context) {
     Row (
         modifier = Modifier
             .padding(horizontal = 20.dp)
@@ -705,19 +711,35 @@ fun Playbar() {
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         PreviousButton()
-        PlayButton()
+        PlayButton(currentSong.uri, mediaPlayer, context)
         NextButton()
     }
 }
 
 @Composable
-fun PlayButton() {
-    Button(
-        onClick = {  },
-        colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.0F))
-    ) {
-        Image(painter = painterResource(id = R.drawable.play), contentDescription = null)
+fun PlayButton(songPath : Uri, mediaPlayer: MediaPlayer, context: Context, ) {
+    var playing by remember {
+        mutableStateOf(mediaPlayer.isPlaying)
     }
+    if (!playing)
+    {
+        Button(
+            onClick = { changeSong(songPath, mediaPlayer, context); playing = true  },
+            colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.0F))
+        ) {
+            Image(painter = painterResource(id = R.drawable.play), contentDescription = null)
+        }
+    }
+    else
+    {
+        Button(
+            onClick = { mediaPlayer.pause(); playing = false  },
+            colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.0F))
+        ) {
+            Image(painter = painterResource(id = R.drawable.reject /*TODO: PAUSE ICON*/), contentDescription = null)
+        }
+    }
+
 }
 
 @Composable
