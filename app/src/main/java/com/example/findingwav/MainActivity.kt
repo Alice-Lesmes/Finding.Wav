@@ -51,9 +51,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Size
+
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
+
+import androidx.compose.ui.layout.HorizontalAlignmentLine
+
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -62,8 +66,12 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
+
 import com.example.findingwav.ui.theme.FindingWavTheme
 import java.util.concurrent.TimeUnit
+
+import org.intellij.lang.annotations.JdkConstants.HorizontalAlignment
+
 
 
 class MainActivity : AppCompatActivity() {
@@ -95,6 +103,10 @@ class MainActivity : AppCompatActivity() {
                    */
 
                 }
+
+                // main ui
+                Title("Finding Wuv", "Playlist Creation Mode", Modifier)
+                Player(musicPlayer)
             }
         }
     }
@@ -224,14 +236,14 @@ class MainActivity : AppCompatActivity() {
 
 
 
-/*
+
 data class Music(
     val name: String,
     val artist: String,
-    val music: Int,
-    val cover: Int,
+    val songDuration: Float,
+    val albumCover: Painter,
 )
-
+/*
 
 // construct playlist
 private fun getPlayList(): List<Music> {
@@ -248,9 +260,14 @@ private fun getPlayList(): List<Music> {
 
 /** Mock data of playlist Strings */
 private fun getPlayLists(): List<String> {
-    return listOf("Main", "Second", "Rock", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG")
+    return listOf("Main", "Second", "Rock") //, "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG")
 }
 
+
+/** Set song name, song */
+fun loadSongs() {
+
+}
 
 
 @Composable
@@ -358,23 +375,59 @@ fun PlaylistSelect() {
 fun Player(player: MediaPlayer) {
     var modifier = Modifier.fillMaxWidth()
 
+    val sliderPosition = remember {
+        mutableLongStateOf(0)
+    }
+
+    val currentPosition = remember {
+        mutableLongStateOf(0)
+    }
+
+    val totalDuration = remember {
+        mutableLongStateOf(0)
+    }
+
+    var songName by remember {
+        mutableStateOf("songTitle")
+    }
+
+    var artistName by remember {
+        mutableStateOf("artistTitle")
+    }
+
+    var albumImage by remember {
+        mutableStateOf(R.drawable.musik)
+    }
+
     Column (
-        modifier = Modifier.padding(top = 150.dp),
+        modifier = Modifier.padding(top = 110.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // Playlist selector
         PlaylistSelect()
         // song title (replace with song name variable
-        SongTitle("Song Title")
+        SongTitle(songName)
         // music image
-        val image = painterResource(id = R.drawable.musik)
+        val image = painterResource(id = albumImage)
         MusicImage(image)
         // artist name
-        ArtistName("Artist Name")
+        ArtistName(artistName)
         // accept / reject button
         AcceptReject()
         // music progress bar
-        TrackSliderBar("00:00", "03:02", player)
+        TrackSlider(
+            value = sliderPosition.longValue.toFloat(),
+            onValueChange = {
+                sliderPosition.longValue = it.toLong()
+            },
+            onValueChangeFinished = {
+                currentPosition.longValue = sliderPosition.longValue
+                player.seekTo(sliderPosition.longValue.toInt())
+            },
+            songDuration = totalDuration.longValue.toFloat()
+        )
+        // music times
+        TrackSliderTime("00:00", "03:02")
         // music controls
         Playbar()
     }
@@ -437,12 +490,9 @@ fun AcceptReject() {
 
 }
 
-// should you make a button take an image
-// or should you make an image clickable?
-
 @Composable
 fun Accept() {
-    Button(onClick = { /*TODO*/ },
+    Button(onClick = { HandleAccept() },
         colors = ButtonColors(Color.Green, Color.Green, Color.Green, Color.Green),
         modifier = Modifier
             .width(70.dp)
@@ -457,7 +507,7 @@ fun Accept() {
 @Composable
 fun Reject() {
     Button(
-        onClick = { /*TODO*/ },
+        onClick = { HandleReject() },
         colors = ButtonColors(Color.Red, Color.Red, Color.Red, Color.Red),
         modifier = Modifier
             .width(70.dp)
@@ -469,39 +519,17 @@ fun Reject() {
 }
 
 // calculate nanosecond from position?
+
 @Composable
-fun TrackSliderBar(startTime: String, endTime: String, player: MediaPlayer) {
-    val sliderPosition = remember {
-        mutableLongStateOf(0)
-    }
-
-    val currentPosition = remember {
-        mutableLongStateOf(0)
-    }
-
-    val totalDuration = remember {
-        mutableLongStateOf(0)
-    }
-
+fun TrackSliderTime(startTime: String, endTime: String) {
     Row(modifier = Modifier
-        .fillMaxWidth(),
-        horizontalArrangement = Arrangement.Center) {
-        // Text(startTime)
+        .fillMaxWidth()
+        .padding(horizontal = 20.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(startTime)
+        Text(endTime)
 
-        // the slider is just too long for text to be displayed on the side
-        TrackSlider(
-            value = sliderPosition.longValue.toFloat(),
-            onValueChange = {
-                sliderPosition.longValue = it.toLong()
-            },
-            onValueChangeFinished = {
-                currentPosition.longValue = sliderPosition.longValue
-                player.seekTo(sliderPosition.longValue, 0)
-
-            },
-            songDuration = totalDuration.longValue.toFloat()
-        )
-        // Text(endTime)
     }
 }
 
@@ -539,7 +567,9 @@ fun TrackSlider(
             activeTrackColor = Color.DarkGray,
             inactiveTrackColor = Color.Gray,
         ),
-        // modifier = Modifier.padding(horizontal = 50.dp)
+        modifier = Modifier
+            .padding(horizontal = 50.dp)
+            // .background(Color.Cyan)
     )
 }
 
@@ -548,8 +578,8 @@ fun TrackSlider(
 fun Playbar() {
     Row (
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp),
+            .padding(horizontal = 20.dp)
+            .fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         PreviousButton()
@@ -561,7 +591,7 @@ fun Playbar() {
 @Composable
 fun PlayButton() {
     Button(
-        onClick = { /*TODO*/ },
+        onClick = { HandlePlay() },
         colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.0F))
     ) {
         Image(painter = painterResource(id = R.drawable.play), contentDescription = null)
@@ -571,7 +601,7 @@ fun PlayButton() {
 @Composable
 fun PreviousButton() {
     Button(
-        onClick = { println("bonjour") },
+        onClick = { PreviousSong() },
         colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.0F))
         ) {
         Image(painter = painterResource(id = R.drawable.previous), contentDescription = null)
@@ -581,13 +611,53 @@ fun PreviousButton() {
 @Composable
 fun NextButton() {
     Button(
-        onClick = { /*TODO*/ },
+        onClick = { HandleNextSong() },
         colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.0F))
     ) {
         Image(painter = painterResource(id = R.drawable.next), contentDescription = null)
 
     }
 }
+
+
+/*
+* START OF HANDLER METHODS
+* */
+
+/** Load the next Song */
+fun NextSong() {
+    println("NextSong has been called")
+
+    // get next song title, artist name, album image and song duration.
+    // update composable SongName(), ArtistName(), MusicImage() and SliderBar()
+}
+
+/** Event handler for the next song button */
+fun HandleNextSong() {
+    println("Handle Next Song function called")
+    // get the current time stored in SliderBar.
+}
+
+/** Event Handler for the checkmark (add to playlist) */
+fun HandleAccept() {
+    println("Handle Accept function called")
+}
+
+/** Go to previous song. To be fair, we haven't really defined logic for this yet... */
+fun PreviousSong() {
+    println("Previous Song has been called")
+}
+
+/** Remove the song from the loaded queue */
+fun HandleReject() {
+    println("Handle Reject has been called")
+}
+
+/** pause or play the song */
+fun HandlePlay() {
+
+}
+
 
 // ****************
 // START OF PREVIEWS
