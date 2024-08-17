@@ -550,10 +550,19 @@ fun PlaylistSelect() {
                     text = { Text(text = label) }
                 )
             }
+
+            // create new playlist button
+            DropdownMenuItem(text = { Text(text = "Create New Playlist") }, onClick = { promptCreation() })
         }
     }
 }
 
+/** Prompt the user to enter text and create a new playlist
+ * yes I know it is probably better to create a new playlst object as a class
+ * will I still ignore it? Yes I will */
+fun promptCreation() {
+
+}
 
 
 @OptIn(ExperimentalFoundationApi::class)
