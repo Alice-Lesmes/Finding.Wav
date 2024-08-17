@@ -1,11 +1,15 @@
 package com.example.findingwav
 
 import android.media.MediaPlayer
+import android.net.Uri
 import android.os.Bundle
 import android.widget.ImageButton
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.DrawableRes
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -19,6 +23,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.materialIcon
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
@@ -28,8 +33,10 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,6 +54,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 
 import androidx.compose.ui.unit.sp
+import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import com.example.findingwav.ui.theme.FindingWavTheme
 
@@ -63,9 +71,7 @@ class MainActivity : ComponentActivity() {
                 // Inits the musicplayer. rn is loonboon
                 var musicPlayerTest = MediaPlayer.create(this, R.raw.loonboon)
                 Scaffold(
-                    modifier =
-
-                    Modifier.fillMaxSize()
+                    modifier = Modifier.fillMaxSize()
                 ) { innerPadding ->
                     var showTime by remember {
                         mutableStateOf(false)
@@ -126,6 +132,30 @@ fun Greeting(name: String, modifier: Modifier = Modifier) {
 
 }
 
+/*
+data class Music(
+    val name: String,
+    val artist: String,
+    val music: Int,
+    val cover: Int,
+)
+
+
+// construct playlist
+private fun getPlayList(): List<Music> {
+    return listOf(
+        Music(
+            name = "loonboon",
+            artist = "Laura Shigihara",
+            cover = R.drawable.musik,
+            music = R.raw.loonboon
+        ),
+    )
+}
+*/
+
+
+
 @Composable
 fun TestGreet(x: String, y: String, modifier: Modifier = Modifier) {
     // the row is not row-ing
@@ -166,21 +196,22 @@ fun PlaylistSelect() {
     // dropdown menu for playlist select
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun Player(player: ExoPlayer) {
     var modifier = Modifier.fillMaxWidth()
-
 
     Column (
         modifier = Modifier.padding(top = 150.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // song title
-        SongTitle()
+        // song title (replace with song name variable
+        SongTitle("Song Title")
         // music image
-        MusicImage()
+        val image = painterResource(id = R.drawable.musik)
+        MusicImage(image)
         // artist name
-        ArtistName()
+        ArtistName("Artist Name")
         // accept / reject button
         AcceptReject()
         // music progress bar
@@ -215,15 +246,14 @@ fun Player(player: ExoPlayer) {
 }
 
 @Composable
-fun SongTitle(modifier: Modifier = Modifier) {
+fun SongTitle(title: String) {
     Text(
-        text = "Song Title"
+        text = title
     )
 }
 
 @Composable
-fun MusicImage() {
-    val image = painterResource(id = R.drawable.musik)
+fun MusicImage(image: Painter) {
     Box (
         modifier = Modifier
             .padding(top = 20.dp)
@@ -249,9 +279,9 @@ fun MusicImage() {
 }
 
 @Composable
-fun ArtistName() {
+fun ArtistName(name: String) {
     Text(
-        text = "Artist Name"
+        text = name
     )
 }
 
@@ -404,10 +434,3 @@ fun TestGreetPreview() {
     }
 }
 
-@Preview(showBackground = true)
-@Composable
-fun MusicImagePreview() {
-    FindingWavTheme {
-        MusicImage()
-    }
-}
