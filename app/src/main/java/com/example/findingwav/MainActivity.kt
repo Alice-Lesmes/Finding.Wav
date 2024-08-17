@@ -706,4 +706,19 @@ fun TitlePreview() {
     }
 }
 
-fun toM3U(songName: String, artistName: String, songDuration: Int)
+/**
+ * Format is
+ * #EXTM3U *Initialiser*
+ * #EXTINF:RUNTIME(seconds),(noSpace)ARTIST_NAME - SONG NAME
+ * FILEPATH/FILENAME
+ *
+ * example:
+ * #EXTM3U
+ * #EXTINF:480,Steely Dan - Aja
+ * Music/Aja - Steely Dan (320).mp3
+ *
+ *
+ * */
+fun toM3U(currentSong: MainActivity.Audio) {
+    // grab a playlist
+}
