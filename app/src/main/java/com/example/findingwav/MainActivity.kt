@@ -61,7 +61,7 @@ class MainActivity : AppCompatActivity() {
 
         enableEdgeToEdge()
 
-
+        var musicPlayer =
         setContent {
             FindingWavTheme {
                 // Inits the musicplayer. rn is loonboon
@@ -124,7 +124,7 @@ class MainActivity : AppCompatActivity() {
         )
 
     fun getAllMusic(): MutableList<Audio> {
-        println("Allowed to access files?: " + Environment.isExternalStorageManager())
+        //println("Allowed to access files?: " + Environment.isExternalStorageManager())
         // Where all the data is appended to
         val dataList = mutableListOf<Audio>()
 
@@ -344,7 +344,7 @@ fun PlaylistSelect() {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun Player(player: ExoPlayer) {
+fun Player(player: MediaPlayer) {
     var modifier = Modifier.fillMaxWidth()
 
     Column (
@@ -459,7 +459,7 @@ fun Reject() {
 
 // calculate nanosecond from position?
 @Composable
-fun TrackSliderBar(startTime: String, endTime: String, player: ExoPlayer) {
+fun TrackSliderBar(startTime: String, endTime: String, player: MediaPlayer) {
     val sliderPosition = remember {
         mutableLongStateOf(0)
     }
@@ -485,7 +485,8 @@ fun TrackSliderBar(startTime: String, endTime: String, player: ExoPlayer) {
             },
             onValueChangeFinished = {
                 currentPosition.longValue = sliderPosition.longValue
-                player.seekTo(sliderPosition.longValue)
+                player.seekTo(sliderPosition.longValue, 0)
+
             },
             songDuration = totalDuration.longValue.toFloat()
         )
