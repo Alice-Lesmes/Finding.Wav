@@ -102,7 +102,7 @@ class MainActivity : AppCompatActivity() {
             songList = getAllMusic()
         }
     }
-    */
+
     public fun getSongList() : MutableList<Audio>
     {
         return songList
@@ -125,7 +125,7 @@ class MainActivity : AppCompatActivity() {
         @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // setSongList()
+        setSongList()
         enableEdgeToEdge()
         // Allows to play music when using changeSong()
         var musicPlayer = MediaPlayer()
@@ -491,11 +491,11 @@ fun Player(
     }*/
 
 
-    }
+
 
     var artistName by remember {
         mutableStateOf(currentSong.artist)
-    }*/
+    }
 
     var albumImage by remember {
         mutableStateOf(image)
@@ -555,9 +555,9 @@ fun Player(
 }
 
 @Composable
-fun SongTitle(title: MutableState<String>) {
+fun SongTitle(title: String) {
     Text(
-        text = title.value,
+        text = title,
         modifier = Modifier
             .padding(top = 5.dp),
         color = Color.White
