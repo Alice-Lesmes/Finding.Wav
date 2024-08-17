@@ -17,7 +17,9 @@ import android.provider.MediaStore.Audio
 import android.provider.Settings
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
+import androidx.collection.ObjectList
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -47,6 +49,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -83,8 +86,10 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var songList : MutableList<Audio>
     private var songCount : Int = 0
+    private lateinit var playLists : MutableMap<String, MutableList<Audio>>
 
-
+    /*
+    @RequiresApi(Build.VERSION_CODES.R)
     fun setSongList() {
         // If have permissions just do it
         if (Environment.isExternalStorageManager())
@@ -100,6 +105,7 @@ class MainActivity : AppCompatActivity() {
 
         }
     }
+    */
     public fun getSongList() : MutableList<Audio>
     {
         return songList
@@ -108,13 +114,16 @@ class MainActivity : AppCompatActivity() {
     {
         return songList[songCount]
     }
+    public fun getPlaylist(name : String) : MutableList<Audio>? {
+        return playLists.get(name)
+    }
 
 
 
         @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setSongList()
+        // setSongList()
         enableEdgeToEdge()
         // Allows to play music when using changeSong()
         var musicPlayer = MediaPlayer()
@@ -298,6 +307,25 @@ private fun getPlayLists(): List<String> {
     return listOf("Main", "Second", "Rock") //, "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG")
 }
 
+/** Retrieve List<MainActivity.Audio> assosicated with String
+ * Format is HashMap<String, List<MainActivity.Audio>>
+ * */
+fun retrievePlaylist(name: String) {
+
+}
+
+// this can probably be deleted
+open class GetParameters {
+    open var songName: String = "songTitle"
+
+    open fun getName(): String {
+        return songName
+    }
+
+    open fun setName(name: String) {
+        songName = name
+    }
+}
 
 
 
@@ -419,7 +447,7 @@ fun Player(player: MediaPlayer) {
         mutableLongStateOf(0)
     }
 
-    var songName by remember {
+    var songName = remember {
         mutableStateOf("songTitle")
     }
 
@@ -466,10 +494,12 @@ fun Player(player: MediaPlayer) {
 }
 
 @Composable
-fun SongTitle(title: String) {
+fun SongTitle(title: MutableState<String>) {
     Text(
-        text = title,
-        modifier = Modifier.padding(top = 5.dp)
+        text = title.value,
+        modifier = Modifier
+            .padding(top = 5.dp),
+        color = Color.White
     )
 }
 
@@ -503,7 +533,8 @@ fun MusicImage(image: Painter) {
 fun ArtistName(name: String) {
     Text(
         text = name,
-        modifier = Modifier.padding(top = 5.dp)
+        modifier = Modifier.padding(top = 5.dp),
+        color = Color.White
     )
 }
 
@@ -559,8 +590,8 @@ fun TrackSliderTime(startTime: String, endTime: String) {
         .padding(horizontal = 20.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(startTime)
-        Text(endTime)
+        Text(text = startTime, color = Color.White)
+        Text(text = endTime, color = Color.White)
 
     }
 }
@@ -657,22 +688,34 @@ fun NextButton() {
 * */
 
 /** Load the next Song */
+
 fun NextSong() {
     println("NextSong has been called")
 
     // get next song title, artist name, album image and song duration.
-    // update composable SongName(), ArtistName(), MusicImage() and SliderBar()
+    // update composable SongTitle(), ArtistName(), MusicImage() and SliderBar()
+    //SongTitle("New Song")
+    //ArtistName(name = "New Artist")
+    //TrackSliderTime("00:00", "06:00")
+
 }
 
-/** Event handler for the next song button */
+
+/** Event handler for the next song button
+ * get a parameter of all the stuff? */
+
 fun HandleNextSong() {
     println("Handle Next Song function called")
     // get the current time stored in SliderBar.
+
+    // mock change the songTitle, artistTitle, image and duration
+    // NextSong()
 }
 
 /** Event Handler for the checkmark (add to playlist) */
 fun HandleAccept() {
     println("Handle Accept function called")
+    testM3U()
 }
 
 /** Go to previous song. To be fair, we haven't really defined logic for this yet... */
@@ -710,3 +753,52 @@ fun TitlePreview() {
     }
 }
 
+fun testM3U() {
+    var testSong: MainActivity.Audio = MainActivity.Audio(
+        Uri.parse("Music/Aja - Steely Dan (320).mp3"),
+        "Aja",
+        "Album",
+        "Steely Dan",
+        480
+    )
+
+    var playlist: MutableList<MainActivity.Audio> = mutableListOf<MainActivity.Audio>()
+    playlist.add(testSong)
+
+    println(toM3U(playlist))
+}
+
+
+/**
+ * Format is
+ * #EXTM3U *Initialiser*
+ * #EXTINF:RUNTIME(seconds),(noSpace)ARTIST_NAME - SONG NAME
+ * FILEPATH/FILENAME
+ *
+ * example:
+ * #EXTM3U
+ * #EXTINF:480,Steely Dan - Aja
+ * Music/Aja - Steely Dan (320).mp3
+ *
+ *
+ * */
+fun toM3U(playlist: MutableList<MainActivity.Audio>) : String {
+    // grab a playlist
+    var out: StringBuilder = StringBuilder()
+
+    out.append("#EXTM3U\n")
+    for (song in playlist) {
+        out.append("#EXTINF:").append(song.duration).append(",").append(song.artist).append(" - ").append(song.name).append("\n")
+        out.append(song.uri)
+    }
+
+    return out.toString()
+
+}
+
+/** Function for use in NextButton and Accept().
+ * Requires both playlist and currently playing song to be passed.
+ * */
+fun addSongToPlaylist(playlist: MutableList<MainActivity.Audio>, song: MainActivity.Audio) {
+    playlist.add(song)
+}
