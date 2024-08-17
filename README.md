@@ -12,7 +12,7 @@ An app to help you find the songs that you *actually* want, or... hear me out...
 - Skipped a song right at the end? It's added to the playlist since you liked it enough to listen
 - Exporting of playlists as .m3u, saved to your music folder
 - Fully offline (works off your downloaded songs)
-- Semi-Functioning play head to skip through song (shhh, don't worry that it's not moving, it's shy)
+- Fully-Functioning Playhead Seeker (ignore the slight bug(s))
 
 ---
 
