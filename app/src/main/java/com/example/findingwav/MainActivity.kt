@@ -93,19 +93,16 @@ class MainActivity : AppCompatActivity() {
     @RequiresApi(Build.VERSION_CODES.R)
     fun setSongList() {
         // If have permissions just do it
-        // uncomment this when you are done building ui
-//        if (Environment.isExternalStorageManager())
-//        {
-//            songList = getAllMusic()
-//        }
-//        else
-//        {
-//        startActivity(
-//            Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
-//        )
-        // I can access everything (including random ah files)
-        songList = getAllMusic()
-        //}
+        if (Environment.isExternalStorageManager())
+        {
+            songList = getAllMusic()
+        }
+        else {
+            startActivity(
+                Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+            )
+            songList = getAllMusic()
+        }
     }
 
     private var playLists : MutableMap<String, MutableList<Audio>> = mutableMapOf<String, MutableList<Audio>>(currentPlaylistName to currentPlaylist)
