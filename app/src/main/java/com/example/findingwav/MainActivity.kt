@@ -1,6 +1,7 @@
 package com.example.findingwav
 
 
+import android.content.ContentResolver
 import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
@@ -58,6 +59,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Size
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.Painter
@@ -72,12 +74,22 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
+
+import androidx.core.app.ActivityCompat.startActivity
+import androidx.core.app.ActivityCompat.startActivityForResult
+import androidx.core.graphics.PathUtils
+
 import androidx.core.graphics.drawable.toBitmap
 import androidx.core.graphics.drawable.toDrawable
 import com.example.findingwav.MainActivity.Audio
 
 import com.example.findingwav.ui.theme.FindingWavTheme
+import java.io.BufferedReader
 import java.io.File
+
+
+import java.io.FileOutputStream
+import java.io.InputStreamReader
 
 import java.util.concurrent.TimeUnit
 
@@ -150,8 +162,7 @@ class MainActivity : AppCompatActivity() {
                 musicPlayer.setOnCompletionListener {
                     println("finished song: " + currentSong.name)
                     addSongToPlaylist(currentPlaylist, currentSong)
-                    songCount++
-                    currentSong = getCurrentSong()
+                    currentSong = nextSong()
                     changeSong(currentSong.uri, musicPlayer, applicationContext)
                 }
 
@@ -160,15 +171,24 @@ class MainActivity : AppCompatActivity() {
                     applicationContext,
                     makeImage(currentSong.uri),
                     onAccept = {
-                        songCount++
-                        currentSong = getCurrentSong()
+                        currentSong = nextSong()
                         if (musicPlayer.isPlaying) changeSong(currentSong.uri, musicPlayer, applicationContext)
 
                         addSongToPlaylist(currentPlaylist, currentSong)
                     },
                     onReject = {
-                        songCount++
-                        currentSong = getCurrentSong()
+                        nextSong()
+                        if (musicPlayer.isPlaying) changeSong(currentSong.uri, musicPlayer, applicationContext)
+
+                    },
+                    skipSong = {
+                        // If time played is greater than or equal to 90% of the duration add to playlist
+                        if (musicPlayer.currentPosition >= 0.9 * musicPlayer.duration)
+                        {
+                            println("Reached threshold, adding to playlist")
+                            addSongToPlaylist(currentPlaylist, currentSong)
+                        }
+                        currentSong = nextSong()
                         if (musicPlayer.isPlaying) changeSong(currentSong.uri, musicPlayer, applicationContext)
 
                     }
@@ -180,6 +200,12 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**Returns the next song*/
+    fun nextSong() : Audio
+    {
+        songCount++
+        return getCurrentSong()
+    }
 
     // Pulled out from the `getAllMusic()` func since it needs to be returned as well
     // And prob helpful to other code stuff
@@ -220,7 +246,7 @@ class MainActivity : AppCompatActivity() {
             MediaStore.Audio.Media.ARTIST,
             MediaStore.Audio.Media.DURATION,
         )
-        // Greater than SelectionArgs
+        // Greater than or = SelectionArgs
         val selection = "${MediaStore.Audio.Media.DURATION} >= ?"
         // 1 minute
         val selectionArgs = arrayOf(TimeUnit.MILLISECONDS.toMinutes(1).toString())
@@ -538,7 +564,8 @@ fun Player(
     context: Context,
     image: Bitmap,
     onAccept: () -> Unit,
-    onReject: () -> Unit) {
+    onReject: () -> Unit,
+    skipSong: () -> Unit) {
     var modifier = Modifier.fillMaxWidth()
     // Get currentSong as Audio class
    /* var songCount by remember {
@@ -624,7 +651,7 @@ fun Player(
         }
         TrackSliderTime("00:00", "$minutesString:$secondsString")
         // music controls
-        Playbar(currentSong, player, context)
+        Playbar(currentSong, player, context, skipSong = { skipSong() })
     }
 }
 
@@ -780,7 +807,7 @@ fun TrackSlider(
 
 
 @Composable
-fun Playbar(currentSong: MainActivity.Audio, mediaPlayer: MediaPlayer, context: Context) {
+fun Playbar(currentSong: MainActivity.Audio, mediaPlayer: MediaPlayer, context: Context, skipSong: () -> Unit) {
     Row (
         modifier = Modifier
             .padding(horizontal = 20.dp)
@@ -789,7 +816,10 @@ fun Playbar(currentSong: MainActivity.Audio, mediaPlayer: MediaPlayer, context: 
     ) {
         PreviousButton()
         PlayButton(currentSong.uri, mediaPlayer, context)
-        NextButton()
+        NextButton(skipSong = {
+            skipSong()
+
+        })
     }
 }
 
@@ -830,9 +860,9 @@ fun PreviousButton() {
 }
 
 @Composable
-fun NextButton() {
+fun NextButton(skipSong : () -> Unit) {
     Button(
-        onClick = { HandleNextSong() },
+        onClick = { skipSong()},
         colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.0F))
     ) {
         Image(painter = painterResource(id = R.drawable.next), contentDescription = null)
@@ -934,7 +964,8 @@ fun testM3U() {
 fun createFile(playlistName: String, playlist: String, context: Context/*TODO: CHANGE THIS*/)
 {
     // Request code for creating a PDF document.
-    val path = context.getExternalFilesDir(null)
+    //val path = context.getExternalFilesDir(null)
+    val path = Environment.getExternalStoragePublicDirectory("Music")
     File(path, "$playlistName" + ".m3u").delete()
     println("Path: " + path)
     // TODO: Add name of playlist file
@@ -964,11 +995,11 @@ fun toM3U(playlistName: String, playlist: MutableList<MainActivity.Audio>?, cont
     var out: StringBuilder = StringBuilder()
 
     out.append("#EXTM3U\n")
-
+    val path = Environment.getExternalStoragePublicDirectory("Music")
     if (playlist != null) {
         for (song in playlist) {
-            out.append("#EXTINF:").append(song.duration).append(",").append(song.artist).append(" - ").append(song.name).append("\n")
-            out.append(song.uri).append("\n")
+            out.append("#EXTINF:").append(song.duration / 1000).append(",").append(song.artist).append(" - ").append(song.name).append("\n")
+            out.append(path).append("/").append(song.name).append("\n")
         }
     }
     // attempt to write locally to downloads?
