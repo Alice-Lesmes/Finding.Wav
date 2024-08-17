@@ -87,6 +87,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var songList : MutableList<Audio>
     private var songCount : Int = 0
     private lateinit var playLists : MutableMap<String, MutableList<Audio>>
+    private var testCount : Int = 0
 
     /*
     @RequiresApi(Build.VERSION_CODES.R)
@@ -116,6 +117,12 @@ class MainActivity : AppCompatActivity() {
     }
     public fun getPlaylist(name : String) : MutableList<Audio>? {
         return playLists.get(name)
+    }
+    public fun getCount() : Int {
+        return testCount
+    }
+    public fun addCount() {
+        testCount++
     }
 
 
@@ -303,7 +310,7 @@ private fun getPlayList(): List<Music> {
 
 /** Mock data of playlist Strings */
 private fun getPlayLists(): List<String> {
-
+    // we would preferably want to be able to save the playlist locally on the phone?
     return listOf("Main", "Second", "Rock") //, "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG")
 }
 
@@ -716,6 +723,8 @@ fun HandleNextSong() {
 fun HandleAccept() {
     println("Handle Accept function called")
     testM3U()
+
+    // add song to playlist (needs to be passed)
 }
 
 /** Go to previous song. To be fair, we haven't really defined logic for this yet... */
