@@ -27,7 +27,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             FindingWavTheme {
-
+                var getMusicClass = MusicPlayerTest()
                 // Inits the musicplayer. rn is loonboon
                 var musicPlayerTest = MediaPlayer.create(this, R.raw.loonboon)
                 Scaffold(modifier =
@@ -39,12 +39,14 @@ class MainActivity : ComponentActivity() {
                     var currentTime by remember {
                         mutableStateOf(musicPlayerTest.timestamp)
                     }
+
                     Column {
                         Button(modifier = Modifier.padding(20.dp), onClick = {
                             // plays music, defined on the create
                             musicPlayerTest.start();
                             showTime = true
                             currentTime = musicPlayerTest.timestamp
+
                         }) {
                             Text(text = "play music")
                         }
@@ -53,6 +55,7 @@ class MainActivity : ComponentActivity() {
                             // Only updates on button press but whatever
                             Text("Here is the current timestamp: " + currentTime)
                         }
+                        Text(text = getMusicClass.getMusicDir().toString())
                     }
 
 
@@ -67,9 +70,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun Greeting(name: String, modifier: Modifier = Modifier) {
     var musicPlayerTest = MusicPlayerTest()
-    Button(onClick = { musicPlayerTest.playMusic() }) {
-        Text(text = "Play Music")
-    }
+
 }
 
 @Preview(showBackground = true)
