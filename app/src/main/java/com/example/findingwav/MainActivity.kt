@@ -14,14 +14,12 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
-import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.provider.Settings
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
-import androidx.collection.ObjectList
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -51,7 +49,6 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -77,9 +74,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
+
 import androidx.core.app.ActivityCompat.startActivity
 import androidx.core.app.ActivityCompat.startActivityForResult
 import androidx.core.graphics.PathUtils
+
 import androidx.core.graphics.drawable.toBitmap
 import androidx.core.graphics.drawable.toDrawable
 import com.example.findingwav.MainActivity.Audio
@@ -87,6 +86,7 @@ import com.example.findingwav.MainActivity.Audio
 import com.example.findingwav.ui.theme.FindingWavTheme
 import java.io.BufferedReader
 import java.io.File
+
 
 import java.io.FileOutputStream
 import java.io.InputStreamReader
@@ -109,8 +109,7 @@ class MainActivity : AppCompatActivity() {
         {
             songList = getAllMusic()
         }
-        else
-        {
+        else {
             startActivity(
                 Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
             )
@@ -154,6 +153,7 @@ class MainActivity : AppCompatActivity() {
                 // main ui
                 Title("Finding Wuv", "Playlist Creation Mode", Modifier)
                 Export(currentPlaylistName, getPlaylist(currentPlaylistName), applicationContext)
+                Edit(getPlaylist(currentPlaylistName))
                 var currentSong by remember {
                     mutableStateOf(getCurrentSong())
                 }
@@ -455,6 +455,39 @@ fun Export(playlistName: String, playlist: MutableList<MainActivity.Audio>?, con
         )
     }
 
+}
+
+/** Edit the playlist */
+@Composable
+fun Edit(playlist: MutableList<Audio>?) {
+
+    var mExpanded by remember { mutableStateOf(false) }
+
+    var mTextFieldSize by remember { mutableStateOf(Size.Zero)}
+
+    Button(onClick = { mExpanded = !mExpanded },
+        modifier = Modifier
+            .padding(start = 280.dp, top = 20.dp)
+            .onGloballyPositioned { coordinates -> mTextFieldSize = coordinates.size.toSize() * 5F }) {
+        Image(painter = painterResource(id = R.drawable.edit), contentDescription = null)
+    }
+
+    DropdownMenu(
+        expanded = mExpanded,
+        onDismissRequest = { mExpanded = false },
+        modifier = Modifier
+            .width(with(LocalDensity.current){mTextFieldSize.width.toDp()})
+    ) {
+        playlist?.forEach { song ->
+            DropdownMenuItem(onClick = {
+                // delete upon removal
+                playlist.remove(song)
+                mExpanded = false
+            },
+                text = { Text(text = song.name) }
+            )
+        }
+    }
 }
 
 
