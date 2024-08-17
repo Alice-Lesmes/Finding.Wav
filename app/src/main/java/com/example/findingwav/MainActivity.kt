@@ -90,6 +90,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var songList : MutableList<Audio>
     private var songCount : Int = 0
+
     private var currentPlaylistName : String = "Main"
     private var currentPlaylist : MutableList<Audio> = mutableListOf()
 
@@ -132,7 +133,6 @@ class MainActivity : AppCompatActivity() {
         enableEdgeToEdge()
         // Allows to play music when using changeSong()
         var musicPlayer = MediaPlayer()
-        applicationContext.filesDir.printWriter()
         setContent {
             FindingWavTheme {
                 Scaffold(modifier =
@@ -150,19 +150,21 @@ class MainActivity : AppCompatActivity() {
 
 
                 Player(musicPlayer,
-                    songList,
                     currentSong,
-                    4,
                     applicationContext,
                     makeImage(currentSong.uri),
                     onAccept = {
                         songCount++
                         currentSong = getCurrentSong()
+                        if (musicPlayer.isPlaying) changeSong(currentSong.uri, musicPlayer, applicationContext)
+
                         addSongToPlaylist(currentPlaylist, currentSong)
                     },
                     onReject = {
                         songCount++
                         currentSong = getCurrentSong()
+                        if (musicPlayer.isPlaying) changeSong(currentSong.uri, musicPlayer, applicationContext)
+
                     }
                 )
 
@@ -316,7 +318,6 @@ fun changeSong(songPath : Uri, mediaPlayer: MediaPlayer, context: Context) {
         prepare()
         start()
     }
-    println("try this idk?")
     mediaPlayer.start()
 
 }
@@ -494,9 +495,7 @@ fun PlaylistSelect() {
 @Composable
 fun Player(
     player: MediaPlayer,
-    songList: MutableList<MainActivity.Audio>,
     currentSong: MainActivity.Audio,
-    initSongCount: Int,
     context: Context,
     image: Bitmap,
     onAccept: () -> Unit,
@@ -510,7 +509,7 @@ fun Player(
         mutableStateOf(songList[songCount])
     }*/
     val sliderPosition = remember {
-        mutableLongStateOf(0)
+        mutableLongStateOf(currentSong.duration.toLong())
     }
 
     val currentPosition = remember {
@@ -548,14 +547,16 @@ fun Player(
         // accept / reject button
         AcceptReject(
             onAccept = {
-                if (player.isPlaying) changeSong(currentSong.uri, player, context)
-
                 onAccept()
+                println(currentSong)
+
+
             },
             onReject = {
-            if (player.isPlaying) changeSong(currentSong.uri, player, context)
+                onReject()
 
-            onReject()
+                if (player.isPlaying) changeSong(currentSong.uri, player, context)
+
             }
         )
         var totalDuration = currentSong.duration.toLong()
@@ -654,7 +655,7 @@ fun AcceptReject(onAccept : () -> Unit, onReject: () -> Unit) {
 fun Accept(onAccept: () -> Unit) {
     Button(onClick =  {
         onAccept()
-                     },
+    },
         colors = ButtonColors(Color.Green, Color.Green, Color.Green, Color.Green),
         modifier = Modifier
             .width(70.dp)
