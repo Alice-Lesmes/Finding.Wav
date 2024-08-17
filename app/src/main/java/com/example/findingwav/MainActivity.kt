@@ -14,6 +14,7 @@ import android.provider.MediaStore.Audio
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.collection.ObjectList
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -43,6 +44,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -263,6 +265,17 @@ private fun getPlayLists(): List<String> {
     return listOf("Main", "Second", "Rock") //, "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG")
 }
 
+open class GetParameters {
+    open var songName: String = "songTitle"
+
+    open fun getName(): String {
+        return songName
+    }
+
+    open fun setName(name: String) {
+        songName = name
+    }
+}
 
 /** Set song name, song */
 fun loadSongs() {
@@ -387,7 +400,7 @@ fun Player(player: MediaPlayer) {
         mutableLongStateOf(0)
     }
 
-    var songName by remember {
+    var songName = remember {
         mutableStateOf("songTitle")
     }
 
@@ -429,15 +442,17 @@ fun Player(player: MediaPlayer) {
         // music times
         TrackSliderTime("00:00", "03:02")
         // music controls
-        Playbar()
+        Playbar(songName)
     }
 }
 
 @Composable
-fun SongTitle(title: String) {
+fun SongTitle(title: MutableState<String>) {
     Text(
-        text = title,
-        modifier = Modifier.padding(top = 5.dp)
+        text = title.value,
+        modifier = Modifier
+            .padding(top = 5.dp),
+        color = Color.White
     )
 }
 
@@ -471,7 +486,8 @@ fun MusicImage(image: Painter) {
 fun ArtistName(name: String) {
     Text(
         text = name,
-        modifier = Modifier.padding(top = 5.dp)
+        modifier = Modifier.padding(top = 5.dp),
+        color = Color.White
     )
 }
 
@@ -527,8 +543,8 @@ fun TrackSliderTime(startTime: String, endTime: String) {
         .padding(horizontal = 20.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(startTime)
-        Text(endTime)
+        Text(text = startTime, color = Color.White)
+        Text(text = endTime, color = Color.White)
 
     }
 }
@@ -575,7 +591,7 @@ fun TrackSlider(
 
 
 @Composable
-fun Playbar() {
+fun Playbar(songName: MutableState<String>) {
     Row (
         modifier = Modifier
             .padding(horizontal = 20.dp)
@@ -584,7 +600,7 @@ fun Playbar() {
     ) {
         PreviousButton()
         PlayButton()
-        NextButton()
+        NextButton(songName)
     }
 }
 
@@ -609,9 +625,9 @@ fun PreviousButton() {
 }
 
 @Composable
-fun NextButton() {
+fun NextButton(songName: MutableState<String>) {
     Button(
-        onClick = { HandleNextSong() },
+        onClick = { HandleNextSong(songName) },
         colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.0F))
     ) {
         Image(painter = painterResource(id = R.drawable.next), contentDescription = null)
@@ -625,17 +641,29 @@ fun NextButton() {
 * */
 
 /** Load the next Song */
+
 fun NextSong() {
     println("NextSong has been called")
 
     // get next song title, artist name, album image and song duration.
-    // update composable SongName(), ArtistName(), MusicImage() and SliderBar()
+    // update composable SongTitle(), ArtistName(), MusicImage() and SliderBar()
+    //SongTitle("New Song")
+    //ArtistName(name = "New Artist")
+    //TrackSliderTime("00:00", "06:00")
+
 }
 
-/** Event handler for the next song button */
-fun HandleNextSong() {
+
+/** Event handler for the next song button
+ * get a parameter of all the stuff? */
+
+fun HandleNextSong(songName: MutableState<String>) {
     println("Handle Next Song function called")
     // get the current time stored in SliderBar.
+
+    // mock change the songTitle, artistTitle, image and duration
+    // NextSong()
+    songName.value = "Hello"
 }
 
 /** Event Handler for the checkmark (add to playlist) */
