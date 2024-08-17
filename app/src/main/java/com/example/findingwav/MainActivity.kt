@@ -2,6 +2,7 @@ package com.example.findingwav
 
 import android.media.MediaPlayer
 import android.os.Bundle
+import android.widget.ImageButton
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -18,7 +19,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 
 import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.materialIcon
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,6 +35,7 @@ import androidx.compose.ui.Alignment
 
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
@@ -50,9 +54,11 @@ class MainActivity : ComponentActivity() {
                 var getMusicClass = MusicPlayerTest()
                 // Inits the musicplayer. rn is loonboon
                 var musicPlayerTest = MediaPlayer.create(this, R.raw.loonboon)
-                Scaffold(modifier =
+                Scaffold(
+                    modifier =
 
-                Modifier.fillMaxSize()) { innerPadding ->
+                    Modifier.fillMaxSize()
+                ) { innerPadding ->
                     var showTime by remember {
                         mutableStateOf(false)
                     }
@@ -70,8 +76,7 @@ class MainActivity : ComponentActivity() {
                         }) {
                             Text(text = "play music")
                         }
-                        if (showTime)
-                        {
+                        if (showTime) {
                             // Only updates on button press but whatever
                             Text("Here is the current timestamp: " + currentTime)
                         }
@@ -79,31 +84,30 @@ class MainActivity : ComponentActivity() {
                     }
 
 
-
-                /* Scaffold(modifier = Modifier.fillMaxSize()) { padding ->
+                    /* Scaffold(modifier = Modifier.fillMaxSize()) { padding ->
                 * Elem()
                 * } */
-                /* Surface (parameters) {
+                    /* Surface (parameters) {
                 *   Elem()
                 * }*/
-                Greeting(
-                    name = "Android",
-                    modifier = Modifier.padding(4.dp)
-                )
-                Scaffold(modifier = Modifier.fillMaxSize()) { padding ->
-                    TestGreet(
-                        x = "First Android App",
-                        y = "Second App",
-                        modifier = Modifier.padding(padding))
+                    Greeting(
+                        name = "Android",
+                        modifier = Modifier.padding(4.dp)
+                    )
+                    Scaffold(modifier = Modifier.fillMaxSize()) { padding ->
+                        TestGreet(
+                            x = "First Android App",
+                            y = "Second App",
+                            modifier = Modifier.padding(padding)
+                        )
 
+                    }
+                    Player()
                 }
-                MusicImage()
-                Playbar()
             }
         }
     }
 }
-
 // this could be useful (making the basic music bar)
 // https://www.digitalocean.com/community/tutorials/android-media-player-song-with-seekbar
 
@@ -158,16 +162,20 @@ fun PlaylistSelect() {
 fun Player() {
     var modifier = Modifier.fillMaxWidth()
 
-    Column() {
+    Column (
+        modifier = Modifier.padding(top = 150.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
         // song title
-
+        SongTitle()
         // music image
-
+        MusicImage()
         // artist name
-
+        ArtistName()
         // accept / reject button
-
+        AcceptReject()
         // music playing bar
+        Playbar()
     }
 }
 
@@ -183,7 +191,7 @@ fun MusicImage() {
     val image = painterResource(id = R.drawable.musik)
     Box (
         modifier = Modifier
-            .padding(top = 200.dp)
+            .padding(top = 20.dp)
             .fillMaxWidth(),  // gotta remember this at all times...
         // TopCenter for horizontal, CenterStart for Vert, Center for both
         // yet it still breaks
@@ -213,9 +221,53 @@ fun ArtistName() {
 }
 
 @Composable
+fun AcceptReject() {
+    Row(
+        modifier = Modifier
+            .width(200.dp)
+            .padding(top = 10.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+
+    ) {
+        Reject()
+        Accept()
+    }
+
+}
+
+// should you make a button take an image
+// or should you make an image clickable?
+
+@Composable
+fun Accept() {
+    Button(onClick = { /*TODO*/ },
+        colors = ButtonColors(Color.Green, Color.Green, Color.Green, Color.Green),
+        modifier = Modifier.width(70.dp)
+            .height(70.dp)) {
+        Image(painter = painterResource(id = R.drawable.check),
+            contentDescription = null,
+            contentScale = ContentScale.FillBounds)
+    }
+}
+
+
+@Composable
+fun Reject() {
+    Button(
+        onClick = { /*TODO*/ },
+        colors = ButtonColors(Color.Red, Color.Red, Color.Red, Color.Red),
+        modifier = Modifier.width(70.dp).height(70.dp)
+    ) {
+        Image(painter = painterResource(id = R.drawable.reject), contentDescription = null)
+        // make bg colour green
+    }
+}
+
+@Composable
 fun Playbar() {
     Row (
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
             .padding(horizontal = 20.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -228,24 +280,28 @@ fun Playbar() {
 @Composable
 fun PlayButton() {
     Button(onClick = { /*TODO*/ }) {
-        Text(text = "")
+        Image(painter = painterResource(id = R.drawable.play), contentDescription = null)
     }
 }
 
 @Composable
 fun PreviousButton() {
     Button(onClick = { /*TODO*/ }) {
-        Text(text = "")
+        Image(painter = painterResource(id = R.drawable.previous), contentDescription = null)
     }
 }
 
 @Composable
 fun NextButton() {
     Button(onClick = { /*TODO*/ }) {
-        Text(text = "")
+        Image(painter = painterResource(id = R.drawable.next), contentDescription = null)
+
     }
 }
 
+// ****************
+// START OF PREVIEWS
+// ****************
 
 @Preview(showBackground = true)
 @Composable
