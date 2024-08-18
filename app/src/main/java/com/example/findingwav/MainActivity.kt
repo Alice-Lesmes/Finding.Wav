@@ -96,6 +96,7 @@ import com.github.theapache64.twyper.TwyperController
 import com.github.theapache64.twyper.rememberTwyperController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.BufferedReader
 import java.io.File
@@ -173,6 +174,7 @@ class MainActivity : AppCompatActivity() {
 
 
                 musicPlayer.setOnCompletionListener {
+
                     println("finished song: " + currentSong.name)
                     addSongToPlaylist(currentPlaylist, currentSong)
                     currentSong = nextSong()
@@ -184,17 +186,29 @@ class MainActivity : AppCompatActivity() {
                     applicationContext,
                     makeImage(currentSong.uri),
                     onAccept = {
-                        currentSong = nextSong()
-                        if (musicPlayer.isPlaying) changeSong(currentSong.uri, musicPlayer, applicationContext)
-
                         addSongToPlaylist(currentPlaylist, currentSong)
+                        if (musicPlayer.isPlaying) {
+                            currentSong = nextSong()
+                            changeSong(currentSong.uri, musicPlayer, applicationContext)
+                        }
+                        else
+                        {
+                            currentSong = nextSong()
+                        }
                     },
                     onReject = {
-                        currentSong = nextSong()
-                        if (musicPlayer.isPlaying) changeSong(currentSong.uri, musicPlayer, applicationContext)
+                        if (musicPlayer.isPlaying) {
+                            currentSong = nextSong()
+                            changeSong(currentSong.uri, musicPlayer, applicationContext)
+                        }
+                        else
+                        {
+                            currentSong = nextSong()
+                        }
 
                     },
                     skipSong = {
+
                         // If time played is greater than or equal to 90% of the duration add to playlist
                         if (musicPlayer.currentPosition >= 0.9 * musicPlayer.duration)
                         {
@@ -558,15 +572,9 @@ fun Player(
     val sliderPosition = remember {
         mutableLongStateOf(currentSong.duration.toLong())
     }
-
-
-
     /*val totalDuration = remember {
         mutableLongStateOf(currentSong.duration.toLong())
     }*/
-
-
-
 
     var artistName by remember {
         mutableStateOf(currentSong.artist)
@@ -602,39 +610,45 @@ fun Player(
             },
             onReject = {
                 twyperController.swipeLeft()
-                if (player.isPlaying) changeSong(currentSong.uri, player, context)
             }
         )
         var totalDuration = currentSong.duration.toLong()
 
-        val mainHandler = Handler(Looper.getMainLooper())
-
-
         var currentTime by remember {
             mutableLongStateOf(player.currentPosition.toLong())
         }
-        mainHandler.post(object : Runnable {
-            override fun run() {
-               val context = this
-               CoroutineScope(Dispatchers.IO).launch {
-                   currentTime = player.currentPosition.toLong()
-                   // Reduce delayMillis to make smoother, but obv cost more on this thread)
-                   // 1s seems good to not make seeking all laggy
-                   mainHandler.postDelayed(context, 1000)
-               }
+        run {
+            CoroutineScope(Dispatchers.IO).launch {
+                // Reduce timeMillis to make smoother, but obv cost more on this thread)
+                // 1s seems good to not make seeking all laggy
+                delay(1000)
+                try {
+                    if (player.isPlaying)
+                    {
+                        currentTime = player.currentPosition.toLong()
+                    }
+                }
+                catch (e: IllegalStateException) {
+                    println("Trying to get player when doesn't exist: " + e)
+                }
 
             }
-        })
-
-
-
+        }
         // music progress bar
         TrackSlider(
             value = currentTime.toFloat(),
             onValueChange = {
+                println(it)
                 currentTime = it.toLong()
                 // Needs to be 'previous' so if dragged to end doesn't crash
-                player.seekTo(it.toLong(), MediaPlayer.SEEK_PREVIOUS_SYNC)
+                if (player.duration > it.toLong()) {
+                    player.seekTo(it.toLong(), MediaPlayer.SEEK_PREVIOUS_SYNC)
+
+                }
+                else {
+                    currentTime = 0
+                    player.seekTo(0)
+                }
 
             },
             onValueChangeFinished = {
@@ -644,7 +658,7 @@ fun Player(
             songDuration = totalDuration.toFloat()
         )
         // music times
-        var minutes = totalDuration / (60 * 1000)
+        var minutes = totalDuration / (60000)
         var seconds = (totalDuration / 1000) % 60
         var minutesString = minutes.toString()
         var secondsString = seconds.toString()
@@ -702,29 +716,25 @@ fun MusicImage(image: Bitmap) {
 fun CardSwipe(image: Bitmap, artist: String, twyperController: TwyperController,
               onAccept: () -> Unit,
               onReject: () -> Unit, items : List<Any>) {
-
-
-    Box(modifier = Modifier.background(color = Color.Transparent)) {
-
-        Twyper(items = items, twyperController = twyperController, onItemRemoved = {
-                item, direction ->
-            if (direction == SwipedOutDirection.LEFT) {
-                println("Swiped Left: Rejecting")
-                onReject()
-            }
-            else {
-                println("Swiped Right: Accepting")
-                onAccept()
-            }
-        }) {
-            Column {
-                MusicImage(image = image)
-
-                ArtistName(name = artist)
-            }
+    Twyper(items = items, twyperController = twyperController, onItemRemoved = {
+            item, direction ->
+        if (direction == SwipedOutDirection.LEFT) {
+            println("Swiped Left: Rejecting")
+            onReject()
         }
+        else {
+            println("Swiped Right: Accepting")
+            onAccept()
+        }
+    }) {
+        Column {
+            MusicImage(image = image)
 
+            ArtistName(name = artist)
+        }
     }
+
+
 
 
     
@@ -866,7 +876,7 @@ fun PlayButton(songPath : Uri, mediaPlayer: MediaPlayer, context: Context, ) {
     if (!playing)
     {
         Button(
-            onClick = { changeSong(songPath, mediaPlayer, context); playing = true  },
+            onClick = { mediaPlayer.start(); playing = true  },
             colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.0F))
         ) {
             Image(painter = painterResource(id = R.drawable.play), contentDescription = null)
@@ -883,6 +893,7 @@ fun PlayButton(songPath : Uri, mediaPlayer: MediaPlayer, context: Context, ) {
     }
 
 }
+
 
 @Composable
 fun PreviousButton() {
@@ -912,16 +923,7 @@ fun NextButton(skipSong : () -> Unit) {
 
 /** Load the next Song */
 
-fun NextSong() {
-    println("NextSong has been called")
 
-    // get next song title, artist name, album image and song duration.
-    // update composable SongTitle(), ArtistName(), MusicImage() and SliderBar()
-    //SongTitle("New Song")
-    //ArtistName(name = "New Artist")
-    //TrackSliderTime("00:00", "06:00")
-
-}
 
 
 /** Event handler for the next song button
