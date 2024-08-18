@@ -20,6 +20,7 @@ import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.provider.Settings
 import android.text.style.BackgroundColorSpan
+import android.view.View
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.RequiresApi
@@ -33,6 +34,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -48,6 +51,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
@@ -241,6 +245,7 @@ class MainActivity : AppCompatActivity() {
         val uri: Uri,
         val name: String,
         val album : String,
+        val title: String,
 /*
         // BitMap image of the album cover. Def got to be a better file format to use but whatever
         val albumCover : Bitmap,
@@ -272,6 +277,7 @@ class MainActivity : AppCompatActivity() {
             MediaStore.Audio.Media.ALBUM,
             MediaStore.Audio.Media.ARTIST,
             MediaStore.Audio.Media.DURATION,
+            MediaStore.Audio.Media.TITLE
         )
         // Greater than or = SelectionArgs
         val selection = "${MediaStore.Audio.Media.DURATION} >= ?"
@@ -294,6 +300,7 @@ class MainActivity : AppCompatActivity() {
             val albumColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
             val artistColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
             val durationColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
+            val titleColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
 
             while (cursor.moveToNext()) {
 
@@ -304,10 +311,12 @@ class MainActivity : AppCompatActivity() {
                     val album = cursor.getString(albumColumn)
                     val artist = cursor.getString(artistColumn)
                     val duration = cursor.getInt(durationColumn)
+                    // The actual name/title of the song file
+                    val title = cursor.getString(titleColumn)
                     // This is the file path of the file
                     val contentURI = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id)
 
-                    dataList.add(MainActivity.Audio(contentURI,name,  album, artist, duration))
+                    dataList.add(MainActivity.Audio(contentURI,name,  album, title, artist, duration))
                 }
                 catch (e : Exception) {
                     println("Error! Here: " + e)
@@ -562,27 +571,8 @@ fun Player(
     onReject: () -> Unit,
     skipSong: () -> Unit) {
     var modifier = Modifier.fillMaxWidth()
-    // Get currentSong as Audio class
-   /* var songCount by remember {
-        mutableIntStateOf(initSongCount)
-    }
-    var currentSong by remember {
-        mutableStateOf(songList[songCount])
-    }*/
-    val sliderPosition = remember {
-        mutableLongStateOf(currentSong.duration.toLong())
-    }
-    /*val totalDuration = remember {
-        mutableLongStateOf(currentSong.duration.toLong())
-    }*/
 
-    var artistName by remember {
-        mutableStateOf(currentSong.artist)
-    }
-
-    var albumImage by remember {
-        mutableStateOf(image)
-    }
+    // Allows to control card like swiping
     val twyperController = rememberTwyperController()
 
 
@@ -593,7 +583,8 @@ fun Player(
         // Playlist selector
         PlaylistSelect()
         // song title (replace with song name variable
-        SongTitle(currentSong.name)
+
+        SongTitle(title = currentSong.title)
         // Card swiping view
         CardSwipe(artist = currentSong.artist,
             image = image,
@@ -601,7 +592,13 @@ fun Player(
             onAccept =  { onAccept() },
             onReject = { onReject() },
             items = listOf(currentSong)
-            )
+        )
+
+
+        
+        Spacer(modifier = Modifier.weight(1.0f))
+        Spacer(modifier = Modifier.height(5.dp))
+
         // accept / reject button
         AcceptReject(
             onAccept = {
@@ -672,15 +669,20 @@ fun Player(
         // music controls
         Playbar(currentSong, player, context, skipSong = { skipSong() })
     }
+
+
 }
 
 @Composable
 fun SongTitle(title: String) {
+
     Text(
         text = title,
         modifier = Modifier
-            .padding(top = 5.dp),
-        color = Color.White
+            .padding(top = 5.dp)
+            ,
+        color = Color.White,
+
     )
 }
 
@@ -708,6 +710,7 @@ fun MusicImage(image: Bitmap) {
                 .width(200.dp)
                 .height(200.dp),
         )
+
 
     }
 }
@@ -803,8 +806,8 @@ fun TrackSliderTime(startTime: String, endTime: String) {
         .padding(horizontal = 20.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(startTime, style = TextStyle(shadow = Shadow(color = Color.White, blurRadius = 1.0f)))
-        Text(endTime, style = TextStyle(shadow = Shadow(color = Color.White, blurRadius = 1.0f)))
+        Text(startTime, style = TextStyle(color = MaterialTheme.colorScheme.primary))
+        Text(endTime, style = TextStyle(color = MaterialTheme.colorScheme.primary))
 
 
     }
@@ -856,6 +859,7 @@ fun Playbar(currentSong: MainActivity.Audio, mediaPlayer: MediaPlayer, context: 
     Row (
         modifier = Modifier
             .padding(horizontal = 20.dp)
+            .padding(bottom = 75.dp)
             .fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -982,8 +986,9 @@ fun TitlePreview() {
 fun testM3U() {
     var testSong: MainActivity.Audio = MainActivity.Audio(
         Uri.parse("Music/Aja - Steely Dan (320).mp3"),
-        "Aja",
+        "Music/ Steely Dan - Aja",
         "Album",
+        "Aja",
         "Steely Dan",
         480
     )
