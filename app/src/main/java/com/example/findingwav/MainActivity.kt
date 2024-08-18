@@ -1,7 +1,6 @@
 package com.example.findingwav
 
 
-import android.content.ContentResolver
 import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
@@ -19,6 +18,7 @@ import android.provider.Settings
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.RequiresApi
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
@@ -48,10 +48,11 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -60,7 +61,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Size
 
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.Painter
@@ -76,21 +76,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
 
-import androidx.core.app.ActivityCompat.startActivity
-import androidx.core.app.ActivityCompat.startActivityForResult
-import androidx.core.graphics.PathUtils
-
 import androidx.core.graphics.drawable.toBitmap
 import androidx.core.graphics.drawable.toDrawable
 import com.example.findingwav.MainActivity.Audio
 
 import com.example.findingwav.ui.theme.FindingWavTheme
-import java.io.BufferedReader
 import java.io.File
 
-
-import java.io.FileOutputStream
-import java.io.InputStreamReader
 
 import java.util.concurrent.TimeUnit
 
@@ -131,8 +123,13 @@ class MainActivity : AppCompatActivity() {
     public fun getPlaylist(name : String) : MutableList<Audio>? {
         return playLists.get(name)
     }
-    public fun setCurrentPlaylist(playlist: MutableList<Audio>) {
-        currentPlaylist = playlist
+    public fun setCurrentPlaylist(name: String) {
+        if (getPlaylist(name) != null) {
+            currentPlaylist = getPlaylist(name)!!
+        }
+    }
+    public fun addPlaylist(name: String) {
+        playLists.put(name, mutableListOf())
     }
 
 
@@ -197,6 +194,8 @@ class MainActivity : AppCompatActivity() {
 
                     },
                     playLists,
+                    selectPlaylist = {setCurrentPlaylist(currentPlaylistName)},
+                    currentPlaylistName
                 )
 
                 
@@ -486,9 +485,12 @@ fun Edit(playlist: MutableList<Audio>?) {
     }
 }
 
-
+/**
+ * @param playlists
+ * selectPlaylist(): Function to select playlist based off name.
+ * */
 @Composable
-fun PlaylistSelect(playlists : MutableMap<String, MutableList<Audio>>) {
+fun PlaylistSelect(playlists: MutableMap<String, MutableList<Audio>>, selectPlaylist: (String) -> Unit) {
     // dropdown menu for playlist select
     // Declaring a boolean value to store
     // the expanded state of the Text Field
@@ -501,6 +503,10 @@ fun PlaylistSelect(playlists : MutableMap<String, MutableList<Audio>>) {
     var mSelectedText by remember { mutableStateOf("") }
 
     var mTextFieldSize by remember { mutableStateOf(Size.Zero)}
+
+    var showCreation by remember {
+        mutableStateOf(false)
+    }
 
     // Up Icon when expanded and down icon when collapsed
     val icon = if (mExpanded)
@@ -542,7 +548,7 @@ fun PlaylistSelect(playlists : MutableMap<String, MutableList<Audio>>) {
                 DropdownMenuItem(onClick = {
                     mSelectedText = label
                     // set playlist (current playlist)
-                    setPlaylist()
+                    selectPlaylist(label)
                     mExpanded = false
                 },
                     text = { Text(text = label) }
@@ -550,17 +556,53 @@ fun PlaylistSelect(playlists : MutableMap<String, MutableList<Audio>>) {
             }
 
             // create new playlist button
-            DropdownMenuItem(text = { Text(text = "Create New Playlist") }, onClick = { promptCreation() })
+            DropdownMenuItem(text = { Text(text = "Create New Playlist") }, onClick = { showCreation = true })
         }
+    }
+
+    /** Prompt the user to enter text and create a new playlist
+     * Holy hell I am tired
+     */
+    if (showCreation) {
+
     }
 }
 
-/** Prompt the user to enter text and create a new playlist
- * yes I know it is probably better to create a new playlst object as a class
- * will I still ignore it? Yes I will */
-fun promptCreation() {
+// https://stackoverflow.com/questions/73455840/textfield-new-line-issue-in-alert-dialog-with-jetpack-compose
+@Composable
+fun CreatePlaylistAlert() {
+    var showCreation by remember {
+        mutableStateOf(false)
+    }
 
+    val text = remember { mutableStateOf("") }
+    val textLength = remember { mutableStateOf(0) }
+
+    AlertDialog(
+        onDismissRequest = { showCreation = false },
+        title = {
+            Text(text = "Create new playlist?",)
+        },
+        text = { TextField(
+            value = text.value,
+            onValueChange = {
+                if (it.length > 200) {
+                    textLength.value = it.length
+                    text.value = it
+                }
+            },
+            )},
+        confirmButton = { Button(onClick = { showCreation = false;})
+            {
+                // This is the text of the button
+                Text(text = "Add Playlist")
+            }
+        },
+
+
+    )
 }
+
 
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -573,7 +615,10 @@ fun Player(
     onAccept: () -> Unit,
     onReject: () -> Unit,
     skipSong: () -> Unit,
-    playlists : MutableMap<String, MutableList<Audio>>) {
+    playlists : MutableMap<String, MutableList<Audio>>,
+    selectPlaylist: (name: String) -> Unit,
+    currentPlaylistName: String
+) {
     var modifier = Modifier.fillMaxWidth()
     // Get currentSong as Audio class
    /* var songCount by remember {
@@ -605,18 +650,13 @@ fun Player(
         mutableStateOf(image)
     }
 
-    var testState by remember {
-        mutableStateOf(playlists.get("Main"))
-    }
-
-    testState = playlists.get("MainTwo")
 
     Column (
         modifier = Modifier.padding(top = 110.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // Playlist selector
-        PlaylistSelect(playlists)
+        PlaylistSelect(playlists, selectPlaylist = {selectPlaylist(currentPlaylistName)})
         // song title (replace with song name variable
         SongTitle(currentSong.name)
         // music image
