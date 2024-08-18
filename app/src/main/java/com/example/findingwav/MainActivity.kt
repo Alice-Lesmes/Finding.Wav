@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -51,6 +52,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -130,7 +132,12 @@ class MainActivity : AppCompatActivity() {
     }
     public fun addPlaylist(name: String) {
         playLists.put(name, mutableListOf())
+
+        println("add playlist called with $name")
     }
+
+    val addPlaylistTest = { name: String -> addPlaylist(name)}
+    val setPlaylistTest = { name: String -> setCurrentPlaylist(name)}
 
 
         @RequiresApi(Build.VERSION_CODES.R)
@@ -194,8 +201,9 @@ class MainActivity : AppCompatActivity() {
 
                     },
                     playLists,
-                    selectPlaylist = {setCurrentPlaylist(currentPlaylistName)},
-                    currentPlaylistName
+                    setPlaylistTest,
+                    currentPlaylistName,
+                    addPlaylistTest
                 )
 
                 
@@ -490,7 +498,10 @@ fun Edit(playlist: MutableList<Audio>?) {
  * selectPlaylist(): Function to select playlist based off name.
  * */
 @Composable
-fun PlaylistSelect(playlists: MutableMap<String, MutableList<Audio>>, selectPlaylist: (String) -> Unit) {
+fun PlaylistSelect(playlists: MutableMap<String, MutableList<Audio>>,
+                   selectPlaylist: (name: String) -> Unit,
+                   createPlaylist: (name: String) -> Unit)
+{
     // dropdown menu for playlist select
     // Declaring a boolean value to store
     // the expanded state of the Text Field
@@ -507,6 +518,9 @@ fun PlaylistSelect(playlists: MutableMap<String, MutableList<Audio>>, selectPlay
     var showCreation by remember {
         mutableStateOf(false)
     }
+
+    val text = remember { mutableStateOf("") }
+    val textLength = remember { mutableStateOf(0) }
 
     // Up Icon when expanded and down icon when collapsed
     val icon = if (mExpanded)
@@ -564,44 +578,42 @@ fun PlaylistSelect(playlists: MutableMap<String, MutableList<Audio>>, selectPlay
      * Holy hell I am tired
      */
     if (showCreation) {
+        AlertDialog(
+            onDismissRequest = { showCreation = false },
+            title = {
+                Text(text = "Create new playlist?",)
+            },
+            text = { Column(Modifier.padding(top=20.dp)) {
+                TextField(
+                    value = text.value,
+                    onValueChange = {
+                        text.value = it
+                    },
+                    label = {Text(text = "Playlist Name")},
+                    modifier = Modifier
+                        .sizeIn(minHeight = 120.dp)
+                )
+            }},
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showCreation = false
+                        // call addPlaylist function
+                        createPlaylist(text.value)
+                        var test: String = text.value
+                        println("create playlist button clicked with $test")
+                    })
+                {
+                    // This is the text of the button
+                    Text(text = "Add Playlist")
+                }
+            },
 
+            )
     }
 }
 
 // https://stackoverflow.com/questions/73455840/textfield-new-line-issue-in-alert-dialog-with-jetpack-compose
-@Composable
-fun CreatePlaylistAlert() {
-    var showCreation by remember {
-        mutableStateOf(false)
-    }
-
-    val text = remember { mutableStateOf("") }
-    val textLength = remember { mutableStateOf(0) }
-
-    AlertDialog(
-        onDismissRequest = { showCreation = false },
-        title = {
-            Text(text = "Create new playlist?",)
-        },
-        text = { TextField(
-            value = text.value,
-            onValueChange = {
-                if (it.length > 200) {
-                    textLength.value = it.length
-                    text.value = it
-                }
-            },
-            )},
-        confirmButton = { Button(onClick = { showCreation = false;})
-            {
-                // This is the text of the button
-                Text(text = "Add Playlist")
-            }
-        },
-
-
-    )
-}
 
 
 
@@ -617,7 +629,8 @@ fun Player(
     skipSong: () -> Unit,
     playlists : MutableMap<String, MutableList<Audio>>,
     selectPlaylist: (name: String) -> Unit,
-    currentPlaylistName: String
+    currentPlaylistName: String,
+    createPlaylist: (name: String) -> Unit
 ) {
     var modifier = Modifier.fillMaxWidth()
     // Get currentSong as Audio class
@@ -656,7 +669,9 @@ fun Player(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // Playlist selector
-        PlaylistSelect(playlists, selectPlaylist = {selectPlaylist(currentPlaylistName)})
+        PlaylistSelect(playlists,
+            selectPlaylist = selectPlaylist,
+            createPlaylist = createPlaylist)
         // song title (replace with song name variable
         SongTitle(currentSong.name)
         // music image
