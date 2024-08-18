@@ -12,7 +12,7 @@ An app to help you find the songs that you *actually* want, or... hear me out...
 - Skipped a song right at the end? It's added to the playlist since you liked it enough to listen
 - Exporting of playlists as .m3u, saved to your music folder
 - Fully offline (works off your downloaded songs)
-- Fully-Functioning Playhead Seeker (ignore the slight bug(s))
+- Fully-Functioning Playhead Seeker (ignore the slight jitters, drank too many energy drinks)
 
 ---
 
