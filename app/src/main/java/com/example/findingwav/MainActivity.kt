@@ -23,6 +23,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -49,6 +50,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AlertDialogDefaults.containerColor
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -78,6 +80,7 @@ import androidx.compose.ui.unit.toSize
 
 import androidx.core.graphics.drawable.toBitmap
 import androidx.core.graphics.drawable.toDrawable
+import androidx.core.util.toHalf
 import com.example.findingwav.MainActivity.Audio
 
 import com.example.findingwav.ui.theme.FindingWavTheme
@@ -483,6 +486,29 @@ fun Edit(playlist: MutableList<Audio>?) {
             )
         }
     }
+}
+
+@Composable
+fun AreYouSureAlert(songName : String, playlistName: String) : Boolean
+{
+    var delete = false
+    var dismissed by remember {
+        mutableStateOf(false)
+    }
+    if (!dismissed)
+    {
+        AlertDialog(
+            modifier = Modifier.border(5.dp, color = Color.Red),
+            onDismissRequest = { dismissed = true },
+            confirmButton = { Text(text = "Yes"); delete = true; dismissed = true },
+            dismissButton = { Text(text = "No"); delete = false; dismissed = true},
+            text = {Text("Are you Sure?")},
+            title = { Text(text = "Do you want to delete $songName from $playlistName")
+            }
+        )
+    }
+    else return delete
+    return delete
 }
 
 /**
