@@ -18,16 +18,17 @@ import android.provider.Settings
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.RequiresApi
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -37,6 +38,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
@@ -44,12 +46,12 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
@@ -61,13 +63,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Size
-
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
-
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -77,21 +76,26 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
-
 import androidx.core.graphics.drawable.toBitmap
 import androidx.core.graphics.drawable.toDrawable
 import com.example.findingwav.MainActivity.Audio
-
 import com.example.findingwav.ui.theme.FindingWavTheme
+import com.github.theapache64.twyper.SwipedOutDirection
+import com.github.theapache64.twyper.Twyper
+import com.github.theapache64.twyper.TwyperController
+import com.github.theapache64.twyper.rememberTwyperController
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.io.File
-
-
 import java.util.concurrent.TimeUnit
 
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var songList : MutableList<Audio>
+    private var songListSize = songList.size
     private var songCount : Int = 0
 
     private var currentPlaylistName : String = "Main"
@@ -111,7 +115,6 @@ class MainActivity : AppCompatActivity() {
             songList = getAllMusic()
         }
     }
-
     private var playLists : MutableMap<String, MutableList<Audio>> = mutableMapOf<String, MutableList<Audio>>(currentPlaylistName to currentPlaylist)
 
     public fun getSongList() : MutableList<Audio>
@@ -120,7 +123,28 @@ class MainActivity : AppCompatActivity() {
     }
     public fun getCurrentSong() : Audio
     {
+        if (songCount > songListSize - 1)
+        {
+            println("Reached end of list")
+            return Audio(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                name ="End of List",
+                album = "No More Songs",
+                title = "Reached end of all songs. Export Playlist",
+                artist = "Export",
+                duration = 10,
+                )
+        }
         return songList[songCount]
+    }
+    public fun getPreviousSong() : Audio
+    {
+
+        songCount--
+        if (songCount < 0)
+        {
+            songCount = 0
+        }
+        return getCurrentSong()
     }
     public fun getPlaylist(name : String) : MutableList<Audio>? {
         return playLists.get(name)
@@ -168,6 +192,7 @@ class MainActivity : AppCompatActivity() {
 
 
                 musicPlayer.setOnCompletionListener {
+
                     println("finished song: " + currentSong.name)
                     addSongToPlaylist(currentPlaylist, currentSong)
                     currentSong = nextSong()
@@ -179,17 +204,29 @@ class MainActivity : AppCompatActivity() {
                     applicationContext,
                     makeImage(currentSong.uri),
                     onAccept = {
-                        currentSong = nextSong()
-                        if (musicPlayer.isPlaying) changeSong(currentSong.uri, musicPlayer, applicationContext)
-
                         addSongToPlaylist(currentPlaylist, currentSong)
+                        if (musicPlayer.isPlaying) {
+                            currentSong = nextSong()
+                            changeSong(currentSong.uri, musicPlayer, applicationContext)
+                        }
+                        else
+                        {
+                            currentSong = nextSong()
+                        }
                     },
                     onReject = {
-                        nextSong()
-                        if (musicPlayer.isPlaying) changeSong(currentSong.uri, musicPlayer, applicationContext)
+                        if (musicPlayer.isPlaying) {
+                            currentSong = nextSong()
+                            changeSong(currentSong.uri, musicPlayer, applicationContext)
+                        }
+                        else
+                        {
+                            currentSong = nextSong()
+                        }
 
                     },
                     skipSong = {
+
                         // If time played is greater than or equal to 90% of the duration add to playlist
                         if (musicPlayer.currentPosition >= 0.9 * musicPlayer.duration)
                         {
@@ -203,7 +240,8 @@ class MainActivity : AppCompatActivity() {
                     playLists,
                     setPlaylistTest,
                     currentPlaylistName,
-                    addPlaylistTest
+                    addPlaylistTest,
+                    previousSong = { currentSong = getPreviousSong() }
                 )
 
                 
@@ -226,6 +264,7 @@ class MainActivity : AppCompatActivity() {
         val uri: Uri,
         val name: String,
         val album : String,
+        val title: String,
 /*
         // BitMap image of the album cover. Def got to be a better file format to use but whatever
         val albumCover : Bitmap,
@@ -257,6 +296,7 @@ class MainActivity : AppCompatActivity() {
             MediaStore.Audio.Media.ALBUM,
             MediaStore.Audio.Media.ARTIST,
             MediaStore.Audio.Media.DURATION,
+            MediaStore.Audio.Media.TITLE
         )
         // Greater than or = SelectionArgs
         val selection = "${MediaStore.Audio.Media.DURATION} >= ?"
@@ -272,13 +312,14 @@ class MainActivity : AppCompatActivity() {
             selectionArgs,
             sortOrder
         )
-            query?.use { cursor ->
-                // Only assign once (i.e caching), the columns
-                val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
-                val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
-                val albumColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
-                val artistColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
-                val durationColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
+        query?.use { cursor ->
+            // Only assign once (i.e caching), the columns
+            val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
+            val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
+            val albumColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
+            val artistColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
+            val durationColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
+            val titleColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
 
             while (cursor.moveToNext()) {
 
@@ -289,10 +330,12 @@ class MainActivity : AppCompatActivity() {
                     val album = cursor.getString(albumColumn)
                     val artist = cursor.getString(artistColumn)
                     val duration = cursor.getInt(durationColumn)
+                    // The actual name/title of the song file
+                    val title = cursor.getString(titleColumn)
                     // This is the file path of the file
                     val contentURI = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id)
 
-                    dataList.add(MainActivity.Audio(contentURI,name,  album, artist, duration))
+                    dataList.add(MainActivity.Audio(contentURI,name,  album, title, artist, duration))
                 }
                 catch (e : Exception) {
                     println("Error! Here: " + e)
@@ -493,6 +536,29 @@ fun Edit(playlist: MutableList<Audio>?) {
     }
 }
 
+@Composable
+fun AreYouSureAlert(songName : String, playlistName: String) : Boolean
+{
+    var delete = false
+    var dismissed by remember {
+        mutableStateOf(false)
+    }
+    if (!dismissed)
+    {
+        AlertDialog(
+            modifier = Modifier.border(5.dp, color = Color.Red),
+            onDismissRequest = { dismissed = true },
+            confirmButton = { Text(text = "Yes"); delete = true; dismissed = true },
+            dismissButton = { Text(text = "No"); delete = false; dismissed = true},
+            text = {Text("Are you Sure?")},
+            title = { Text(text = "Do you want to delete $songName from $playlistName")
+            }
+        )
+    }
+    else return delete
+    return delete
+}
+
 /**
  * @param playlists
  * selectPlaylist(): Function to select playlist based off name.
@@ -617,6 +683,7 @@ fun PlaylistSelect(playlists: MutableMap<String, MutableList<Audio>>,
 
 
 
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun Player(
@@ -630,38 +697,14 @@ fun Player(
     playlists : MutableMap<String, MutableList<Audio>>,
     selectPlaylist: (name: String) -> Unit,
     currentPlaylistName: String,
-    createPlaylist: (name: String) -> Unit
+    createPlaylist: (name: String) -> Unit,
+    previousSong: () -> Unit
 ) {
     var modifier = Modifier.fillMaxWidth()
-    // Get currentSong as Audio class
-   /* var songCount by remember {
-        mutableIntStateOf(initSongCount)
-    }
-    var currentSong by remember {
-        mutableStateOf(songList[songCount])
-    }*/
-    val sliderPosition = remember {
-        mutableLongStateOf(currentSong.duration.toLong())
-    }
 
-    val currentPosition = remember {
-        mutableLongStateOf(0)
-    }
+    // Allows to control card like swiping
+    val twyperController = rememberTwyperController()
 
-    /*val totalDuration = remember {
-        mutableLongStateOf(currentSong.duration.toLong())
-    }*/
-
-
-
-
-    var artistName by remember {
-        mutableStateOf(currentSong.artist)
-    }
-
-    var albumImage by remember {
-        mutableStateOf(image)
-    }
 
 
     Column (
@@ -673,42 +716,79 @@ fun Player(
             selectPlaylist = selectPlaylist,
             createPlaylist = createPlaylist)
         // song title (replace with song name variable
-        SongTitle(currentSong.name)
-        // music image
-        MusicImage(image)
-        // artist name
 
-        ArtistName(currentSong.artist)
+        SongTitle(title = currentSong.title)
+        // Card swiping view
+        CardSwipe(artist = currentSong.artist,
+            image = image,
+            twyperController = twyperController,
+            onAccept =  { onAccept() },
+            onReject = { onReject() },
+            items = listOf(currentSong)
+        )
+
+
+        
+        Spacer(modifier = Modifier.weight(1.0f))
+        Spacer(modifier = Modifier.height(5.dp))
+
         // accept / reject button
         AcceptReject(
             onAccept = {
-                onAccept()
                 println(currentSong)
-
-
+                twyperController.swipeRight()
             },
             onReject = {
-                onReject()
-
-                if (player.isPlaying) changeSong(currentSong.uri, player, context)
-
+                twyperController.swipeLeft()
             }
         )
         var totalDuration = currentSong.duration.toLong()
+
+        var currentTime by remember {
+            mutableLongStateOf(player.currentPosition.toLong())
+        }
+        run {
+            CoroutineScope(Dispatchers.IO).launch {
+                // Reduce timeMillis to make smoother, but obv cost more on this thread)
+                // 1s seems good to not make seeking all laggy
+                delay(1000)
+                try {
+                    if (player.isPlaying)
+                    {
+                        currentTime = player.currentPosition.toLong()
+                    }
+                }
+                catch (e: IllegalStateException) {
+                    println("Trying to get player when doesn't exist: " + e)
+                }
+
+            }
+        }
         // music progress bar
         TrackSlider(
-            value = sliderPosition.longValue.toFloat(),
+            value = currentTime.toFloat(),
             onValueChange = {
-                sliderPosition.longValue = it.toLong()
+                println(it)
+                currentTime = it.toLong()
+                // Needs to be 'previous' so if dragged to end doesn't crash
+                if (player.duration > it.toLong()) {
+                    player.seekTo(it.toLong(), MediaPlayer.SEEK_PREVIOUS_SYNC)
+
+                }
+                else {
+                    currentTime = 0
+                    player.seekTo(0)
+                }
+
             },
             onValueChangeFinished = {
-                currentPosition.longValue = sliderPosition.longValue
-                player.seekTo(sliderPosition.longValue.toInt())
+                //currentTime = sliderPosition.longValue
+                //player.seekTo(sliderPosition.longValue.toInt())
             },
             songDuration = totalDuration.toFloat()
         )
         // music times
-        var minutes = totalDuration / (60 * 1000)
+        var minutes = totalDuration / (60000)
         var seconds = (totalDuration / 1000) % 60
         var minutesString = minutes.toString()
         var secondsString = seconds.toString()
@@ -720,17 +800,27 @@ fun Player(
         }
         TrackSliderTime("00:00", "$minutesString:$secondsString")
         // music controls
-        Playbar(currentSong, player, context, skipSong = { skipSong() })
+        Playbar(
+            currentSong,
+            player,
+            context,
+            skipSong = { skipSong() },
+            previousSong = { previousSong() })
     }
+
+
 }
 
 @Composable
 fun SongTitle(title: String) {
+
     Text(
         text = title,
         modifier = Modifier
-            .padding(top = 5.dp),
-        color = Color.White
+            .padding(top = 5.dp)
+            ,
+        color = Color.White,
+
     )
 }
 
@@ -759,16 +849,43 @@ fun MusicImage(image: Bitmap) {
                 .height(200.dp),
         )
 
+
     }
+}
+
+@Composable
+fun CardSwipe(image: Bitmap, artist: String, twyperController: TwyperController,
+              onAccept: () -> Unit,
+              onReject: () -> Unit, items : List<Any>) {
+    Twyper(items = items, twyperController = twyperController, onItemRemoved = {
+            item, direction ->
+        if (direction == SwipedOutDirection.LEFT) {
+            println("Swiped Left: Rejecting")
+            onReject()
+        }
+        else {
+            println("Swiped Right: Accepting")
+            onAccept()
+        }
+    }) {
+        Column {
+            MusicImage(image = image)
+
+            ArtistName(name = artist)
+        }
+    }
+
+
+
+
+    
 }
 
 @Composable
 fun ArtistName(name: String) {
     Text(
         text = name,
-        modifier = Modifier.padding(top = 5.dp),
-        color = Color.White
-    )
+        modifier = Modifier.padding(top = 5.dp)    )
 }
 
 @Composable
@@ -827,8 +944,8 @@ fun TrackSliderTime(startTime: String, endTime: String) {
         .padding(horizontal = 20.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(startTime, style = TextStyle(shadow = Shadow(color = Color.White, blurRadius = 1.0f)))
-        Text(endTime, style = TextStyle(shadow = Shadow(color = Color.White, blurRadius = 1.0f)))
+        Text(startTime, style = TextStyle(color = MaterialTheme.colorScheme.primary))
+        Text(endTime, style = TextStyle(color = MaterialTheme.colorScheme.primary))
 
 
     }
@@ -876,14 +993,21 @@ fun TrackSlider(
 
 
 @Composable
-fun Playbar(currentSong: MainActivity.Audio, mediaPlayer: MediaPlayer, context: Context, skipSong: () -> Unit) {
+fun Playbar(
+    currentSong: Audio,
+    mediaPlayer: MediaPlayer,
+    context: Context,
+    skipSong: () -> Unit,
+    previousSong: () -> Unit
+) {
     Row (
         modifier = Modifier
             .padding(horizontal = 20.dp)
+            .padding(bottom = 75.dp)
             .fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        PreviousButton()
+        PreviousButton(previousSong)
         PlayButton(currentSong.uri, mediaPlayer, context)
         NextButton(skipSong = {
             skipSong()
@@ -900,7 +1024,7 @@ fun PlayButton(songPath : Uri, mediaPlayer: MediaPlayer, context: Context, ) {
     if (!playing)
     {
         Button(
-            onClick = { changeSong(songPath, mediaPlayer, context); playing = true  },
+            onClick = { mediaPlayer.start(); playing = true  },
             colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.0F))
         ) {
             Image(painter = painterResource(id = R.drawable.play), contentDescription = null)
@@ -918,8 +1042,9 @@ fun PlayButton(songPath : Uri, mediaPlayer: MediaPlayer, context: Context, ) {
 
 }
 
+
 @Composable
-fun PreviousButton() {
+fun PreviousButton(PreviousSong : () -> Unit) {
     Button(
         onClick = { PreviousSong() },
         colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.0F))
@@ -946,16 +1071,7 @@ fun NextButton(skipSong : () -> Unit) {
 
 /** Load the next Song */
 
-fun NextSong() {
-    println("NextSong has been called")
 
-    // get next song title, artist name, album image and song duration.
-    // update composable SongTitle(), ArtistName(), MusicImage() and SliderBar()
-    //SongTitle("New Song")
-    //ArtistName(name = "New Artist")
-    //TrackSliderTime("00:00", "06:00")
-
-}
 
 
 /** Event handler for the next song button
@@ -1014,8 +1130,9 @@ fun TitlePreview() {
 fun testM3U() {
     var testSong: MainActivity.Audio = MainActivity.Audio(
         Uri.parse("Music/Aja - Steely Dan (320).mp3"),
-        "Aja",
+        "Music/ Steely Dan - Aja",
         "Album",
+        "Aja",
         "Steely Dan",
         480
     )
