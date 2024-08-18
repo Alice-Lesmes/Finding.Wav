@@ -51,6 +51,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -130,6 +131,9 @@ class MainActivity : AppCompatActivity() {
     public fun getPlaylist(name : String) : MutableList<Audio>? {
         return playLists.get(name)
     }
+    public fun setCurrentPlaylist(playlist: MutableList<Audio>) {
+        currentPlaylist = playlist
+    }
 
 
         @RequiresApi(Build.VERSION_CODES.R)
@@ -191,7 +195,8 @@ class MainActivity : AppCompatActivity() {
                         currentSong = nextSong()
                         if (musicPlayer.isPlaying) changeSong(currentSong.uri, musicPlayer, applicationContext)
 
-                    }
+                    },
+                    playLists,
                 )
 
                 
@@ -377,9 +382,14 @@ private fun getPlayList(): List<Music> {
 */
 
 /** Mock data of playlist Strings */
-private fun getPlayLists(): List<String> {
+private fun getPlaylistNames(playlists : MutableMap<String, MutableList<Audio>>): List<String> {
+    var names: MutableList<String> = mutableListOf();
 
-    return listOf("Main", "Second", "Rock") //, "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG")
+    for (name in playlists) {
+        names.add(name.key)
+    }
+
+    return names //, "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG")
 }
 
 /** Retrieve List<MainActivity.Audio> assosicated with String
@@ -388,20 +398,6 @@ private fun getPlayLists(): List<String> {
 fun retrievePlaylist(name: String) {
 
 }
-
-// this can probably be deleted
-open class GetParameters {
-    open var songName: String = "songTitle"
-
-    open fun getName(): String {
-        return songName
-    }
-
-    open fun setName(name: String) {
-        songName = name
-    }
-}
-
 
 
 
@@ -492,14 +488,14 @@ fun Edit(playlist: MutableList<Audio>?) {
 
 
 @Composable
-fun PlaylistSelect() {
+fun PlaylistSelect(playlists : MutableMap<String, MutableList<Audio>>) {
     // dropdown menu for playlist select
     // Declaring a boolean value to store
     // the expanded state of the Text Field
     var mExpanded by remember { mutableStateOf(false) }
 
     // Create a list of cities
-    val mPlaylist = getPlayLists()
+    val mPlaylist = getPlaylistNames(playlists)
 
     // Create a string value to store the selected city
     var mSelectedText by remember { mutableStateOf("") }
@@ -545,6 +541,8 @@ fun PlaylistSelect() {
             mPlaylist.forEach { label ->
                 DropdownMenuItem(onClick = {
                     mSelectedText = label
+                    // set playlist (current playlist)
+                    setPlaylist()
                     mExpanded = false
                 },
                     text = { Text(text = label) }
@@ -574,7 +572,8 @@ fun Player(
     image: Bitmap,
     onAccept: () -> Unit,
     onReject: () -> Unit,
-    skipSong: () -> Unit) {
+    skipSong: () -> Unit,
+    playlists : MutableMap<String, MutableList<Audio>>) {
     var modifier = Modifier.fillMaxWidth()
     // Get currentSong as Audio class
    /* var songCount by remember {
@@ -606,12 +605,18 @@ fun Player(
         mutableStateOf(image)
     }
 
+    var testState by remember {
+        mutableStateOf(playlists.get("Main"))
+    }
+
+    testState = playlists.get("MainTwo")
+
     Column (
         modifier = Modifier.padding(top = 110.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // Playlist selector
-        PlaylistSelect()
+        PlaylistSelect(playlists)
         // song title (replace with song name variable
         SongTitle(currentSong.name)
         // music image
