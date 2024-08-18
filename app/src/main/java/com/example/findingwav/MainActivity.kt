@@ -93,7 +93,6 @@ import java.util.concurrent.TimeUnit
 class MainActivity : AppCompatActivity() {
 
     private lateinit var songList : MutableList<Audio>
-    private var songListSize = songList.size
     private var songCount : Int = 0
 
     private var currentPlaylistName : String = "Main"
@@ -121,8 +120,13 @@ class MainActivity : AppCompatActivity() {
     }
     public fun getCurrentSong() : Audio
     {
-        if (songCount > songListSize - 1)
-        {
+
+
+        try {
+            return songList[songCount]
+
+        }
+        catch (e : Exception) {
             println("Reached end of list")
             return Audio(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
                 name ="End of List",
@@ -130,13 +134,11 @@ class MainActivity : AppCompatActivity() {
                 title = "Reached end of all songs. Export Playlist",
                 artist = "Export",
                 duration = 10,
-                )
+            )
         }
-        return songList[songCount]
     }
     public fun getPreviousSong() : Audio
     {
-
         songCount--
         if (songCount < 0)
         {
