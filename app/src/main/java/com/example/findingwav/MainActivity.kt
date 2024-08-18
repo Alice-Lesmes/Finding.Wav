@@ -1,7 +1,6 @@
 package com.example.findingwav
 
 
-import android.content.ContentResolver
 import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
@@ -24,10 +23,12 @@ import android.view.View
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.RequiresApi
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -56,6 +57,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AlertDialogDefaults.containerColor
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffectScope
 import androidx.compose.runtime.MutableState
@@ -70,7 +74,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Size
 
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.Painter
@@ -86,15 +89,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
 
-import androidx.core.app.ActivityCompat.startActivity
-import androidx.core.app.ActivityCompat.startActivityForResult
-import androidx.core.graphics.PathUtils
-
 import androidx.core.graphics.drawable.toBitmap
 import androidx.core.graphics.drawable.toDrawable
+import androidx.core.util.toHalf
 import com.example.findingwav.MainActivity.Audio
 
 import com.example.findingwav.ui.theme.FindingWavTheme
+
 import com.github.theapache64.twyper.SwipedOutDirection
 import com.github.theapache64.twyper.Twyper
 import com.github.theapache64.twyper.TwyperController
@@ -149,6 +150,14 @@ class MainActivity : AppCompatActivity() {
     }
     public fun getPlaylist(name : String) : MutableList<Audio>? {
         return playLists.get(name)
+    }
+    public fun setCurrentPlaylist(name: String) {
+        if (getPlaylist(name) != null) {
+            currentPlaylist = getPlaylist(name)!!
+        }
+    }
+    public fun addPlaylist(name: String) {
+        playLists.put(name, mutableListOf())
     }
 
 
@@ -224,7 +233,10 @@ class MainActivity : AppCompatActivity() {
                         currentSong = nextSong()
                         if (musicPlayer.isPlaying) changeSong(currentSong.uri, musicPlayer, applicationContext)
 
-                    }
+                    },
+                    playLists,
+                    selectPlaylist = {setCurrentPlaylist(currentPlaylistName)},
+                    currentPlaylistName
                 )
 
                 
@@ -415,9 +427,14 @@ private fun getPlayList(): List<Music> {
 */
 
 /** Mock data of playlist Strings */
-private fun getPlayLists(): List<String> {
+private fun getPlaylistNames(playlists : MutableMap<String, MutableList<Audio>>): List<String> {
+    var names: MutableList<String> = mutableListOf();
 
-    return listOf("Main", "Second", "Rock") //, "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG")
+    for (name in playlists) {
+        names.add(name.key)
+    }
+
+    return names //, "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG", "SUPER LONG")
 }
 
 /** Retrieve List<MainActivity.Audio> assosicated with String
@@ -426,20 +443,6 @@ private fun getPlayLists(): List<String> {
 fun retrievePlaylist(name: String) {
 
 }
-
-// this can probably be deleted
-open class GetParameters {
-    open var songName: String = "songTitle"
-
-    open fun getName(): String {
-        return songName
-    }
-
-    open fun setName(name: String) {
-        songName = name
-    }
-}
-
 
 
 
@@ -528,21 +531,51 @@ fun Edit(playlist: MutableList<Audio>?) {
     }
 }
 
-
 @Composable
-fun PlaylistSelect() {
+fun AreYouSureAlert(songName : String, playlistName: String) : Boolean
+{
+    var delete = false
+    var dismissed by remember {
+        mutableStateOf(false)
+    }
+    if (!dismissed)
+    {
+        AlertDialog(
+            modifier = Modifier.border(5.dp, color = Color.Red),
+            onDismissRequest = { dismissed = true },
+            confirmButton = { Text(text = "Yes"); delete = true; dismissed = true },
+            dismissButton = { Text(text = "No"); delete = false; dismissed = true},
+            text = {Text("Are you Sure?")},
+            title = { Text(text = "Do you want to delete $songName from $playlistName")
+            }
+        )
+    }
+    else return delete
+    return delete
+}
+
+/**
+ * @param playlists
+ * selectPlaylist(): Function to select playlist based off name.
+ * */
+@Composable
+fun PlaylistSelect(playlists: MutableMap<String, MutableList<Audio>>, selectPlaylist: (String) -> Unit) {
     // dropdown menu for playlist select
     // Declaring a boolean value to store
     // the expanded state of the Text Field
     var mExpanded by remember { mutableStateOf(false) }
 
     // Create a list of cities
-    val mPlaylist = getPlayLists()
+    val mPlaylist = getPlaylistNames(playlists)
 
     // Create a string value to store the selected city
     var mSelectedText by remember { mutableStateOf("") }
 
     var mTextFieldSize by remember { mutableStateOf(Size.Zero)}
+
+    var showCreation by remember {
+        mutableStateOf(false)
+    }
 
     // Up Icon when expanded and down icon when collapsed
     val icon = if (mExpanded)
@@ -583,13 +616,60 @@ fun PlaylistSelect() {
             mPlaylist.forEach { label ->
                 DropdownMenuItem(onClick = {
                     mSelectedText = label
+                    // set playlist (current playlist)
+                    selectPlaylist(label)
                     mExpanded = false
                 },
                     text = { Text(text = label) }
                 )
             }
+
+            // create new playlist button
+            DropdownMenuItem(text = { Text(text = "Create New Playlist") }, onClick = { showCreation = true })
         }
     }
+
+    /** Prompt the user to enter text and create a new playlist
+     * Holy hell I am tired
+     */
+    if (showCreation) {
+
+    }
+}
+
+// https://stackoverflow.com/questions/73455840/textfield-new-line-issue-in-alert-dialog-with-jetpack-compose
+@Composable
+fun CreatePlaylistAlert() {
+    var showCreation by remember {
+        mutableStateOf(false)
+    }
+
+    val text = remember { mutableStateOf("") }
+    val textLength = remember { mutableStateOf(0) }
+
+    AlertDialog(
+        onDismissRequest = { showCreation = false },
+        title = {
+            Text(text = "Create new playlist?",)
+        },
+        text = { TextField(
+            value = text.value,
+            onValueChange = {
+                if (it.length > 200) {
+                    textLength.value = it.length
+                    text.value = it
+                }
+            },
+            )},
+        confirmButton = { Button(onClick = { showCreation = false;})
+            {
+                // This is the text of the button
+                Text(text = "Add Playlist")
+            }
+        },
+
+
+    )
 }
 
 
@@ -604,11 +684,16 @@ fun Player(
     image: Bitmap,
     onAccept: () -> Unit,
     onReject: () -> Unit,
-    skipSong: () -> Unit) {
+    skipSong: () -> Unit,
+    playlists : MutableMap<String, MutableList<Audio>>,
+    selectPlaylist: (name: String) -> Unit,
+    currentPlaylistName: String
+) {
     var modifier = Modifier.fillMaxWidth()
 
     // Allows to control card like swiping
     val twyperController = rememberTwyperController()
+
 
 
     Column (
@@ -616,7 +701,7 @@ fun Player(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // Playlist selector
-        PlaylistSelect()
+        PlaylistSelect(playlists, selectPlaylist = {selectPlaylist(currentPlaylistName)})
         // song title (replace with song name variable
 
         SongTitle(title = currentSong.title)
