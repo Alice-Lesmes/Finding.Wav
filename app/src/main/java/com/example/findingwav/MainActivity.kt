@@ -18,7 +18,6 @@ import android.provider.Settings
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.RequiresApi
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
@@ -50,7 +49,6 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AlertDialogDefaults.containerColor
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -80,7 +78,6 @@ import androidx.compose.ui.unit.toSize
 
 import androidx.core.graphics.drawable.toBitmap
 import androidx.core.graphics.drawable.toDrawable
-import androidx.core.util.toHalf
 import com.example.findingwav.MainActivity.Audio
 
 import com.example.findingwav.ui.theme.FindingWavTheme
@@ -123,6 +120,11 @@ class MainActivity : AppCompatActivity() {
     {
         return songList[songCount]
     }
+    public fun getPreviousSong() : Audio
+    {
+        songCount--
+        return getCurrentSong()
+    }
     public fun getPlaylist(name : String) : MutableList<Audio>? {
         return playLists.get(name)
     }
@@ -134,7 +136,6 @@ class MainActivity : AppCompatActivity() {
     public fun addPlaylist(name: String) {
         playLists.put(name, mutableListOf())
     }
-
 
         @RequiresApi(Build.VERSION_CODES.R)
         @OptIn(ExperimentalMaterial3Api::class)
@@ -198,7 +199,8 @@ class MainActivity : AppCompatActivity() {
                     },
                     playLists,
                     selectPlaylist = {setCurrentPlaylist(currentPlaylistName)},
-                    currentPlaylistName
+                    currentPlaylistName,
+                    previousSong = { currentSong = getPreviousSong() }
                 )
 
                 
@@ -643,7 +645,8 @@ fun Player(
     skipSong: () -> Unit,
     playlists : MutableMap<String, MutableList<Audio>>,
     selectPlaylist: (name: String) -> Unit,
-    currentPlaylistName: String
+    currentPlaylistName: String,
+    previousSong: () -> Unit
 ) {
     var modifier = Modifier.fillMaxWidth()
     // Get currentSong as Audio class
@@ -731,7 +734,12 @@ fun Player(
         }
         TrackSliderTime("00:00", "$minutesString:$secondsString")
         // music controls
-        Playbar(currentSong, player, context, skipSong = { skipSong() })
+        Playbar(
+            currentSong,
+            player,
+            context,
+            skipSong = { skipSong() },
+            previousSong = { previousSong() })
     }
 }
 
@@ -887,14 +895,20 @@ fun TrackSlider(
 
 
 @Composable
-fun Playbar(currentSong: MainActivity.Audio, mediaPlayer: MediaPlayer, context: Context, skipSong: () -> Unit) {
+fun Playbar(
+    currentSong: Audio,
+    mediaPlayer: MediaPlayer,
+    context: Context,
+    skipSong: () -> Unit,
+    previousSong: () -> Unit
+) {
     Row (
         modifier = Modifier
             .padding(horizontal = 20.dp)
             .fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        PreviousButton()
+        PreviousButton(previousSong)
         PlayButton(currentSong.uri, mediaPlayer, context)
         NextButton(skipSong = {
             skipSong()
@@ -930,7 +944,7 @@ fun PlayButton(songPath : Uri, mediaPlayer: MediaPlayer, context: Context, ) {
 }
 
 @Composable
-fun PreviousButton() {
+fun PreviousButton(PreviousSong : () -> Unit) {
     Button(
         onClick = { PreviousSong() },
         colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.0F))
