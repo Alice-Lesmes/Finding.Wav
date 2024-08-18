@@ -113,7 +113,6 @@ class MainActivity : AppCompatActivity() {
             songList = getAllMusic()
         }
     }
-
     private var playLists : MutableMap<String, MutableList<Audio>> = mutableMapOf<String, MutableList<Audio>>(currentPlaylistName to currentPlaylist)
 
     public fun getSongList() : MutableList<Audio>
