@@ -76,6 +76,11 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
 import androidx.core.graphics.drawable.toBitmap
 import androidx.core.graphics.drawable.toDrawable
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import androidx.media3.common.Player.Listener
+import androidx.media3.common.Player.MEDIA_ITEM_TRANSITION_REASON_AUTO
+import androidx.media3.exoplayer.ExoPlayer
 import com.example.findingwav.MainActivity.Audio
 import com.example.findingwav.ui.theme.FindingWavTheme
 import com.github.theapache64.twyper.SwipedOutDirection
@@ -120,8 +125,6 @@ class MainActivity : AppCompatActivity() {
     }
     public fun getCurrentSong() : Audio
     {
-
-
         try {
             return songList[songCount]
 
@@ -164,8 +167,10 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setSongList()
         enableEdgeToEdge()
-        // Allows to play music when using changeSong()
-        var musicPlayer = MediaPlayer()
+        // Allows to play music when using changeSong() - OUTDATED
+        // var musicPlayer = MediaPlayer()
+        // Allows to play music when using changeSong(), new mediaPlayer version
+        val /*music*/musicPlayer = ExoPlayer.Builder(applicationContext).build()
 
 
 
@@ -183,15 +188,28 @@ class MainActivity : AppCompatActivity() {
                 var currentSong by remember {
                     mutableStateOf(getCurrentSong())
                 }
-
-
-                musicPlayer.setOnCompletionListener {
-
-                    println("finished song: " + currentSong.name)
-                    addSongToPlaylist(currentPlaylist, currentSong)
-                    currentSong = nextSong()
-                    changeSong(currentSong.uri, musicPlayer, applicationContext)
+                Button(onClick = { changeSong(currentSong.uri, musicPlayer) }) {
+                    Text("")
                 }
+
+                // Can move this basically anywhere as long as it activates and can properly
+                // Listen
+                /**
+                 * This listener checks to see if the reason that a song was changed was
+                 * because the song automatically finished
+                 */
+                musicPlayer.addListener(object : Player.Listener {
+                    override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                        // If it automatically transitioned to next song
+                        if (reason == MEDIA_ITEM_TRANSITION_REASON_AUTO) {
+                            println("finished song: " + currentSong.name)
+                            addSongToPlaylist(currentPlaylist, currentSong)
+                            //currentSong = nextSong()
+                            //changeSong(currentSong.uri, musicPlayer, applicationContext)
+                        }
+                    }
+                })
+
 
                 Player(musicPlayer,
                     currentSong,
@@ -199,24 +217,12 @@ class MainActivity : AppCompatActivity() {
                     makeImage(currentSong.uri),
                     onAccept = {
                         addSongToPlaylist(currentPlaylist, currentSong)
-                        if (musicPlayer.isPlaying) {
-                            currentSong = nextSong()
-                            changeSong(currentSong.uri, musicPlayer, applicationContext)
-                        }
-                        else
-                        {
-                            currentSong = nextSong()
-                        }
+                        currentSong = nextSong()
+                        changeSong(currentSong.uri, musicPlayer)
                     },
                     onReject = {
-                        if (musicPlayer.isPlaying) {
-                            currentSong = nextSong()
-                            changeSong(currentSong.uri, musicPlayer, applicationContext)
-                        }
-                        else
-                        {
-                            currentSong = nextSong()
-                        }
+                        currentSong = nextSong()
+                        changeSong(currentSong.uri, musicPlayer)
 
                     },
                     skipSong = {
@@ -228,13 +234,14 @@ class MainActivity : AppCompatActivity() {
                             addSongToPlaylist(currentPlaylist, currentSong)
                         }
                         currentSong = nextSong()
-                        if (musicPlayer.isPlaying) changeSong(currentSong.uri, musicPlayer, applicationContext)
+                        if (musicPlayer.isPlaying) changeSong(currentSong.uri, musicPlayer)
 
                     },
                     playLists,
                     selectPlaylist = {setCurrentPlaylist(currentPlaylistName)},
                     currentPlaylistName,
-                    previousSong = { currentSong = getPreviousSong() }
+                    previousSong = { currentSong = getPreviousSong()
+                        changeSong(currentSong.uri, musicPlayer) }
                 )
 
                 
@@ -382,12 +389,14 @@ class MainActivity : AppCompatActivity() {
 // this could be useful (making the basic music bar)
 // https://www.digitalocean.com/community/tutorials/android-media-player-song-with-seekbar
 
-fun changeSong(songPath : Uri, mediaPlayer: MediaPlayer, context: Context) {
+fun changeSong(songPath : Uri, mediaPlayer: ExoPlayer) {
     /**
      * This inits a music player and plays the song specified by the file path
      */
-    mediaPlayer.reset()
-    mediaPlayer.apply {
+    val mediaItem = MediaItem.fromUri(songPath)
+    mediaPlayer.setMediaItem(mediaItem)
+    mediaPlayer.prepare()
+    /*mediaPlayer.apply {
         setAudioAttributes(
             AudioAttributes.Builder()
                 .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
@@ -397,8 +406,7 @@ fun changeSong(songPath : Uri, mediaPlayer: MediaPlayer, context: Context) {
         setDataSource(context, songPath)
         prepare()
         start()
-    }
-    mediaPlayer.start()
+    }*/
 
 }
 
@@ -676,7 +684,7 @@ fun CreatePlaylistAlert() {
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun Player(
-    player: MediaPlayer,
+    player: ExoPlayer,
     currentSong: MainActivity.Audio,
     context: Context,
     image: Bitmap,
@@ -722,6 +730,7 @@ fun Player(
         AcceptReject(
             onAccept = {
                 println(currentSong)
+
                 twyperController.swipeRight()
             },
             onReject = {
@@ -758,8 +767,7 @@ fun Player(
                 currentTime = it.toLong()
                 // Needs to be 'previous' so if dragged to end doesn't crash
                 if (player.duration > it.toLong()) {
-                    player.seekTo(it.toLong(), MediaPlayer.SEEK_PREVIOUS_SYNC)
-
+                    player.seekTo(it.toLong())
                 }
                 else {
                     currentTime = 0
@@ -789,7 +797,6 @@ fun Player(
         Playbar(
             currentSong,
             player,
-            context,
             skipSong = { skipSong() },
             previousSong = { previousSong() })
     }
@@ -910,6 +917,7 @@ fun Reject(onReject: () -> Unit) {
     Button(
         onClick = {
 
+
             onReject()},
         colors = ButtonColors(Color.Red, Color.Red, Color.Red, Color.Red),
         modifier = Modifier
@@ -981,8 +989,7 @@ fun TrackSlider(
 @Composable
 fun Playbar(
     currentSong: Audio,
-    mediaPlayer: MediaPlayer,
-    context: Context,
+    mediaPlayer: ExoPlayer,
     skipSong: () -> Unit,
     previousSong: () -> Unit
 ) {
@@ -994,7 +1001,7 @@ fun Playbar(
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         PreviousButton(previousSong)
-        PlayButton(currentSong.uri, mediaPlayer, context)
+        PlayButton(currentSong.uri, mediaPlayer)
         NextButton(skipSong = {
             skipSong()
 
@@ -1003,14 +1010,16 @@ fun Playbar(
 }
 
 @Composable
-fun PlayButton(songPath : Uri, mediaPlayer: MediaPlayer, context: Context, ) {
+fun PlayButton(songPath : Uri, mediaPlayer: ExoPlayer) {
     var playing by remember {
         mutableStateOf(mediaPlayer.isPlaying)
     }
     if (!playing)
     {
         Button(
-            onClick = { mediaPlayer.start(); playing = true  },
+            //TODO: Make sure this .play() doesn't cause an error since it isn't prepared
+            // it shouldn't since the player should have a loaded playlist
+            onClick = {  mediaPlayer.play(); playing = true  },
             colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.0F))
         ) {
             Image(painter = painterResource(id = R.drawable.play), contentDescription = null)
