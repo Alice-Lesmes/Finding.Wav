@@ -204,9 +204,10 @@ class MainActivity : AppCompatActivity() {
                         if (reason == MEDIA_ITEM_TRANSITION_REASON_AUTO) {
                             println("finished song: " + currentSong.name)
                             addSongToPlaylist(currentPlaylist, currentSong)
-                            //currentSong = nextSong()
-                            //changeSong(currentSong.uri, musicPlayer, applicationContext)
+                            currentSong = nextSong()
+                            changeSong(currentSong.uri, musicPlayer)
                         }
+
                     }
                 })
 
@@ -234,7 +235,7 @@ class MainActivity : AppCompatActivity() {
                             addSongToPlaylist(currentPlaylist, currentSong)
                         }
                         currentSong = nextSong()
-                        if (musicPlayer.isPlaying) changeSong(currentSong.uri, musicPlayer)
+                        changeSong(currentSong.uri, musicPlayer)
 
                     },
                     playLists,
@@ -243,9 +244,6 @@ class MainActivity : AppCompatActivity() {
                     previousSong = { currentSong = getPreviousSong()
                         changeSong(currentSong.uri, musicPlayer) }
                 )
-
-                
-
             }
         }
     }
