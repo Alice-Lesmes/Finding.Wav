@@ -6,9 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.media.AudioAttributes
 import android.media.MediaMetadataRetriever
-import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -78,9 +76,11 @@ import androidx.core.graphics.drawable.toBitmap
 import androidx.core.graphics.drawable.toDrawable
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
-import androidx.media3.common.Player.Listener
 import androidx.media3.common.Player.MEDIA_ITEM_TRANSITION_REASON_AUTO
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.session.MediaSession
+import androidx.media3.session.MediaSession.Callback
 import com.example.findingwav.MainActivity.Audio
 import com.example.findingwav.ui.theme.FindingWavTheme
 import com.github.theapache64.twyper.SwipedOutDirection
@@ -98,7 +98,9 @@ import java.util.concurrent.TimeUnit
 class MainActivity : AppCompatActivity() {
 
     private lateinit var songList : MutableList<Audio>
+    private lateinit var exoSongList : MutableList<MediaItem>
     private var songCount : Int = 0
+
 
     private var currentPlaylistName : String = "Main"
     private var currentPlaylist : MutableList<Audio> = mutableListOf()
@@ -108,13 +110,15 @@ class MainActivity : AppCompatActivity() {
         // If have permissions just do it
         if (Environment.isExternalStorageManager())
         {
-            songList = getAllMusic()
+            exoSongList = getAllMusic()
+
+            //songList = getAllMusic()
         }
         else {
             startActivity(
                 Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
             )
-            songList = getAllMusic()
+            exoSongList = getAllMusic()
         }
     }
     private var playLists : MutableMap<String, MutableList<Audio>> = mutableMapOf<String, MutableList<Audio>>(currentPlaylistName to currentPlaylist)
@@ -131,8 +135,9 @@ class MainActivity : AppCompatActivity() {
         }
         catch (e : Exception) {
             println("Reached end of list")
-            return Audio(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-                name ="End of List",
+            return Audio(
+                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                name = "End of List",
                 album = "No More Songs",
                 title = "Reached end of all songs. Export Playlist",
                 artist = "Export",
@@ -170,7 +175,14 @@ class MainActivity : AppCompatActivity() {
         // Allows to play music when using changeSong() - OUTDATED
         // var musicPlayer = MediaPlayer()
         // Allows to play music when using changeSong(), new mediaPlayer version
-        val /*music*/musicPlayer = ExoPlayer.Builder(applicationContext).build()
+        val musicPlayer = ExoPlayer.Builder(applicationContext).build()
+        // This allows for preipherals (earphones) to properly interact with the player... hopefully
+        val mediaSession = MediaSession.Builder(applicationContext, musicPlayer)
+            // Allows to activate custom code on event
+            // Currently using it to act on skip or previous
+            // TODO: check if below code works for onMediaButtonAction, and for skip (double tap)
+            // .setCallback()
+            .build()
 
 
 
@@ -188,10 +200,9 @@ class MainActivity : AppCompatActivity() {
                 var currentSong by remember {
                     mutableStateOf(getCurrentSong())
                 }
-                Button(onClick = { changeSong(currentSong.uri, musicPlayer) }) {
-                    Text("")
-                }
 
+                musicPlayer.setMediaItems(exoSongList)
+                musicPlayer.prepare()
                 // Can move this basically anywhere as long as it activates and can properly
                 // Listen
                 /**
@@ -273,10 +284,11 @@ class MainActivity : AppCompatActivity() {
 
 
 
-    fun getAllMusic(): MutableList<Audio> {
+    fun getAllMusic(): MutableList<MediaItem> {
         //println("Allowed to access files?: " + Environment.isExternalStorageManager())
         // Where all the data is appended to
         val dataList = mutableListOf<Audio>()
+        val ExoDataList = mutableListOf<MediaItem>()
 
         val collection =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -331,9 +343,11 @@ class MainActivity : AppCompatActivity() {
                     // The actual name/title of the song file
                     val title = cursor.getString(titleColumn)
                     // This is the file path of the file
+                    // This is all that matters, since the player can retrieve this other data
                     val contentURI = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id)
 
                     dataList.add(MainActivity.Audio(contentURI,name,  album, title, artist, duration))
+                    ExoDataList.add(MediaItem.fromUri(contentURI))
                 }
                 catch (e : Exception) {
                     println("Error! Here: " + e)
@@ -341,7 +355,7 @@ class MainActivity : AppCompatActivity() {
 
             }
         }
-        return dataList
+        return ExoDataList
 
     }
 
@@ -387,24 +401,14 @@ class MainActivity : AppCompatActivity() {
 // this could be useful (making the basic music bar)
 // https://www.digitalocean.com/community/tutorials/android-media-player-song-with-seekbar
 
+@androidx.annotation.OptIn(UnstableApi::class)
 fun changeSong(songPath : Uri, mediaPlayer: ExoPlayer) {
     /**
      * This inits a music player and plays the song specified by the file path
      */
-    val mediaItem = MediaItem.fromUri(songPath)
-    mediaPlayer.setMediaItem(mediaItem)
-    mediaPlayer.prepare()
-    /*mediaPlayer.apply {
-        setAudioAttributes(
-            AudioAttributes.Builder()
-                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                .setUsage(AudioAttributes.USAGE_MEDIA)
-                .build()
-        )
-        setDataSource(context, songPath)
-        prepare()
-        start()
-    }*/
+    mediaPlayer.seekToNextMediaItem()
+
+
 
 }
 
@@ -654,7 +658,7 @@ fun CreatePlaylistAlert() {
     AlertDialog(
         onDismissRequest = { showCreation = false },
         title = {
-            Text(text = "Create new playlist?",)
+            Text(text = "Create new playlist?")
         },
         text = { TextField(
             value = text.value,
@@ -808,11 +812,10 @@ fun SongTitle(title: String) {
     Text(
         text = title,
         modifier = Modifier
-            .padding(top = 5.dp)
-            ,
+            .padding(top = 5.dp),
         color = Color.White,
 
-    )
+        )
 }
 
 
@@ -1039,7 +1042,7 @@ fun PlayButton(songPath : Uri, mediaPlayer: ExoPlayer) {
 @Composable
 fun PreviousButton(PreviousSong : () -> Unit) {
     Button(
-        onClick = { PreviousSong() },
+        onClick = { PreviousSong();  },
         colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.0F))
         ) {
         Image(painter = painterResource(id = R.drawable.previous), contentDescription = null)
