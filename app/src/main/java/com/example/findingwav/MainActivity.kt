@@ -6,9 +6,6 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.media.AudioAttributes
-import android.media.MediaMetadataRetriever
-import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -19,7 +16,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -53,6 +49,7 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -76,77 +73,95 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
 import androidx.core.graphics.drawable.toBitmap
 import androidx.core.graphics.drawable.toDrawable
-import com.example.findingwav.MainActivity.Audio
+import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
+import androidx.media3.common.Player
+import androidx.media3.common.Player.MEDIA_ITEM_TRANSITION_REASON_AUTO
+import androidx.media3.common.Player.MEDIA_ITEM_TRANSITION_REASON_SEEK
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.session.MediaButtonReceiver
+import androidx.media3.session.MediaSession
 import com.example.findingwav.ui.theme.FindingWavTheme
 import com.github.theapache64.twyper.SwipedOutDirection
 import com.github.theapache64.twyper.Twyper
 import com.github.theapache64.twyper.TwyperController
 import com.github.theapache64.twyper.rememberTwyperController
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import com.google.common.io.Files.append
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import java.io.File
+import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var songList : MutableList<Audio>
+    private lateinit var exoSongList : MutableList<MediaItem>
     private var songCount : Int = 0
 
+
     private var currentPlaylistName : String = "Main"
-    private var currentPlaylist : MutableList<Audio> = mutableListOf()
+    private var currentPlaylist : MutableList<MediaItem> = mutableListOf()
+
 
     @RequiresApi(Build.VERSION_CODES.R)
     fun setSongList() {
         // If have permissions just do it
         if (Environment.isExternalStorageManager())
         {
-            songList = getAllMusic()
+            exoSongList = getAllMusic()
+
+            //songList = getAllMusic()
         }
         else {
             startActivity(
                 Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
             )
-            songList = getAllMusic()
+            exoSongList = getAllMusic()
         }
     }
-    private var playLists : MutableMap<String, MutableList<Audio>> = mutableMapOf<String, MutableList<Audio>>(currentPlaylistName to currentPlaylist)
+    private var playLists : MutableMap<String, MutableList<MediaItem>> = mutableMapOf<String, MutableList<MediaItem>>(currentPlaylistName to currentPlaylist)
 
-    public fun getSongList() : MutableList<Audio>
+    public fun getSongList() : MutableList<MediaItem>
     {
-        return songList
+        return exoSongList
     }
-    public fun getCurrentSong() : Audio
+
+    /**
+     * Returns the MediaItem (song).
+     * To query this item for it's metadata use getCurrentSong().mediaMetadata.xxxx
+     */
+    public fun getCurrentSong(player : ExoPlayer) : MediaItem
     {
+        println("Song List! " + exoSongList.size)
+        val song = player.currentMediaItem
 
-
-        try {
-            return songList[songCount]
+        if (song == null) {
+            println("Song is null")
+            // No data. End of list item or list is empty
+            return return MediaItem.Builder().setMediaMetadata(MediaMetadata.Builder()
+                .setTitle("End of List")
+                .setAlbumTitle("No More Songs")
+                .build()).build()
 
         }
-        catch (e : Exception) {
-            println("Reached end of list")
-            return Audio(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-                name ="End of List",
-                album = "No More Songs",
-                title = "Reached end of all songs. Export Playlist",
-                artist = "Export",
-                duration = 10,
-            )
-        }
+        return song
     }
-    public fun getPreviousSong() : Audio
+    // Used to check the previous song's play time (to see whether to add to playlist)
+    companion object {
+        var previousSongTime : Long = 0
+        public fun previousSongPlayTime(playTime : Long) {
+            previousSongTime = playTime
+        }
+
+    }
+
+
+    public fun getPreviousSong(player : ExoPlayer) : MediaItem
     {
-        songCount--
-        if (songCount < 0)
-        {
-            songCount = 0
-        }
-        return getCurrentSong()
+        return player.getMediaItemAt(player.previousMediaItemIndex)
     }
-    public fun getPlaylist(name : String) : MutableList<Audio>? {
+    public fun getPlaylist(name : String) : MutableList<MediaItem>? {
         return playLists.get(name)
     }
     public fun setCurrentPlaylist(name: String) {
@@ -164,10 +179,17 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setSongList()
         enableEdgeToEdge()
-        // Allows to play music when using changeSong()
-        var musicPlayer = MediaPlayer()
-
-
+        // Allows to play music when using changeSong() - OUTDATED
+        // var musicPlayer = MediaPlayer()
+        // Allows to play music when using changeSong(), new mediaPlayer version
+        val musicPlayer = ExoPlayer.Builder(applicationContext).build()
+        // This allows for peripherals (earphones) to properly interact with the player (not sure about skipping)
+        val mediaSession = MediaSession.Builder(applicationContext, musicPlayer)
+            // Allows to activate custom code on event
+            // Currently using it to act on skip or previous
+            // TODO: check if below code works for onMediaButtonAction, and for skip (double tap)
+            // .setCallback()
+            .build()
 
         setContent {
             FindingWavTheme {
@@ -178,76 +200,85 @@ class MainActivity : AppCompatActivity() {
 
                 // main ui
                 Title("Finding Wuv", "Playlist Creation Mode", Modifier)
+                // Added duration as individual parameter to avoid using deprecated MediaMetaData.durationMS
                 Export(currentPlaylistName, getPlaylist(currentPlaylistName), applicationContext)
                 Edit(getPlaylist(currentPlaylistName))
-                var currentSong by remember {
-                    mutableStateOf(getCurrentSong())
+
+                musicPlayer.setMediaItems(exoSongList)
+                musicPlayer.prepare()
+                val currentSong = remember {
+                    mutableStateOf(MediaItem.Builder().build())
                 }
-
-
-                musicPlayer.setOnCompletionListener {
-
-                    println("finished song: " + currentSong.name)
-                    addSongToPlaylist(currentPlaylist, currentSong)
-                    currentSong = nextSong()
-                    changeSong(currentSong.uri, musicPlayer, applicationContext)
+                val currentSongMetadata = remember {
+                    mutableStateOf(MediaItem.Builder().build().mediaMetadata)
                 }
+                currentSong.value = getCurrentSong(musicPlayer)
+                currentSongMetadata.value = currentSong.value.mediaMetadata
+                // Can move this basically anywhere as long as it activates and can properly
+                /**
+                 * This listener checks to see if the reason that a song was changed was
+                 * because the song automatically finished
+                 */
+
+                musicPlayer.addListener(object : Player.Listener {
+
+                    @androidx.annotation.OptIn(UnstableApi::class)
+                    override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+
+                        println("INDEX: " + musicPlayer.previousMediaItemIndex)
+                        // If it automatically transitioned to next song
+                        if (reason == MEDIA_ITEM_TRANSITION_REASON_AUTO) {
+                            println("AUTO REASON")
+                            val completedSong = musicPlayer.getMediaItemAt(
+                                musicPlayer.previousMediaItemIndex)
+                            // Assures not null (optional) i think
+                            completedSong?.let {
+                                addSongToPlaylist(currentPlaylist,
+                                    it
+                                )
+                            }
+
+                        } else {
+                            // Really not needed but whatever
+                            if (reason == MEDIA_ITEM_TRANSITION_REASON_SEEK) {
+                                println("SEEK REASON")
+
+                                val completedSong = musicPlayer.getMediaItemAt(
+                                    musicPlayer.previousMediaItemIndex)
+                                // The `!contains` prevents duplicates being added to playlist
+                                if (!currentPlaylist.contains(completedSong) && previousSongTime > (0.9 * completedSong.mediaMetadata.durationMs!!)) {
+                                    println("Over 90% PLAYED!")
+                                    addSongToPlaylist(currentPlaylist, completedSong)
+                                }
+                            }
+                        }
+                    }
+                })
 
                 Player(musicPlayer,
-                    currentSong,
                     applicationContext,
-                    makeImage(currentSong.uri),
+                    onChange = {
+                        currentSong.value = musicPlayer.currentMediaItem!!
+                    },
                     onAccept = {
-                        addSongToPlaylist(currentPlaylist, currentSong)
-                        if (musicPlayer.isPlaying) {
-                            currentSong = nextSong()
-                            changeSong(currentSong.uri, musicPlayer, applicationContext)
-                        }
-                        else
-                        {
-                            currentSong = nextSong()
-                        }
+                        musicPlayer.currentMediaItem?.let { addSongToPlaylist(currentPlaylist, it) }
                     },
                     onReject = {
-                        if (musicPlayer.isPlaying) {
-                            currentSong = nextSong()
-                            changeSong(currentSong.uri, musicPlayer, applicationContext)
-                        }
-                        else
-                        {
-                            currentSong = nextSong()
-                        }
-
-                    },
-                    skipSong = {
-
-                        // If time played is greater than or equal to 90% of the duration add to playlist
-                        if (musicPlayer.currentPosition >= 0.9 * musicPlayer.duration)
-                        {
-                            println("Reached threshold, adding to playlist")
-                            addSongToPlaylist(currentPlaylist, currentSong)
-                        }
-                        currentSong = nextSong()
-                        if (musicPlayer.isPlaying) changeSong(currentSong.uri, musicPlayer, applicationContext)
+                        currentSong.value = getCurrentSong(musicPlayer)
 
                     },
                     playLists,
                     selectPlaylist = {setCurrentPlaylist(currentPlaylistName)},
-                    currentPlaylistName,
-                    previousSong = { currentSong = getPreviousSong() }
+                    currentPlaylistName
                 )
-
-                
-
             }
         }
     }
 
     /**Returns the next song*/
-    fun nextSong() : Audio
+    fun nextSong(player : ExoPlayer) : MediaItem
     {
-        songCount++
-        return getCurrentSong()
+        return player.getMediaItemAt(player.nextMediaItemIndex)
     }
 
     // Pulled out from the `getAllMusic()` func since it needs to be returned as well
@@ -267,11 +298,11 @@ class MainActivity : AppCompatActivity() {
         )
 
 
-
-    fun getAllMusic(): MutableList<Audio> {
+    @androidx.annotation.OptIn(UnstableApi::class)
+    fun getAllMusic(): MutableList<MediaItem> {
         //println("Allowed to access files?: " + Environment.isExternalStorageManager())
         // Where all the data is appended to
-        val dataList = mutableListOf<Audio>()
+        val ExoDataList = mutableListOf<MediaItem>()
 
         val collection =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -289,7 +320,8 @@ class MainActivity : AppCompatActivity() {
             MediaStore.Audio.Media.ALBUM,
             MediaStore.Audio.Media.ARTIST,
             MediaStore.Audio.Media.DURATION,
-            MediaStore.Audio.Media.TITLE
+            MediaStore.Audio.Media.TITLE,
+            MediaStore.Audio.Media.IS_MUSIC
         )
         // Greater than or = SelectionArgs
         val selection = "${MediaStore.Audio.Media.DURATION} >= ?"
@@ -313,59 +345,41 @@ class MainActivity : AppCompatActivity() {
             val artistColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
             val durationColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
             val titleColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
+            val music = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.IS_MUSIC)
+
+
 
             while (cursor.moveToNext()) {
-
-                try {
+                val isMusic = cursor.getString(music)
+                // Check that file is music file
+                if (isMusic.isNotEmpty()) {
                     // Assign the values of the files to these
                     val id = cursor.getLong(idColumn)
                     val name = cursor.getString(nameColumn)
                     val album = cursor.getString(albumColumn)
                     val artist = cursor.getString(artistColumn)
-                    val duration = cursor.getInt(durationColumn)
+                    val duration = cursor.getLong(durationColumn)
                     // The actual name/title of the song file
                     val title = cursor.getString(titleColumn)
                     // This is the file path of the file
+                    // This is all that matters, since the player can retrieve this other data
                     val contentURI = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id)
+                    val mediaItem = MediaItem.Builder().setMediaMetadata(MediaMetadata.Builder()
+                        .setTitle(title)
+                        .setAlbumTitle(album)
+                        .setArtist(artist)
+                        .setArtworkUri(contentURI)
+                        .setDurationMs(duration)
+                        .setDisplayTitle(name).build())
+                        .setUri(contentURI).build()
 
-                    dataList.add(MainActivity.Audio(contentURI,name,  album, title, artist, duration))
+                    ExoDataList.add(mediaItem)
                 }
-                catch (e : Exception) {
-                    println("Error! Here: " + e)
-                }
-
             }
         }
-        return dataList
-
+        return ExoDataList
     }
 
-    public fun makeImage(filePath : Uri) : Bitmap {
-        /**
-         * Returns a Bitmap image of the album cover (if none, bitmap is like 0x0 image)
-         */
-        val metadataGetter : MediaMetadataRetriever = MediaMetadataRetriever()
-
-        metadataGetter.setDataSource(applicationContext, filePath)
-        val rawAlbum = metadataGetter.embeddedPicture
-        var length = 0
-        try {
-            println(getCurrentSong().name)
-            length = rawAlbum!!.size
-        }
-        catch (e: Exception){
-            println("Ooops no Album Image")
-            return R.drawable.musik.toDrawable().toBitmap(width = 256, height = 256)
-        }
-        if (length == 0 || rawAlbum == null)
-        {
-            return R.drawable.musik.toDrawable().toBitmap(width = 256, height = 256)
-        }
-        var bitmap = BitmapFactory.decodeByteArray(rawAlbum, 0, length)
-        if (bitmap == null) return R.drawable.musik.toDrawable().toBitmap(width = 256, height = 256)
-        return bitmap
-
-    }
 }
 
 
@@ -382,25 +396,14 @@ class MainActivity : AppCompatActivity() {
 // this could be useful (making the basic music bar)
 // https://www.digitalocean.com/community/tutorials/android-media-player-song-with-seekbar
 
-fun changeSong(songPath : Uri, mediaPlayer: MediaPlayer, context: Context) {
+fun changeSong(mediaPlayer: ExoPlayer) {
     /**
      * This inits a music player and plays the song specified by the file path
      */
-    mediaPlayer.reset()
-    mediaPlayer.apply {
-        setAudioAttributes(
-            AudioAttributes.Builder()
-                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                .setUsage(AudioAttributes.USAGE_MEDIA)
-                .build()
-        )
-        setDataSource(context, songPath)
-        prepare()
-        start()
-    }
-    mediaPlayer.start()
-
+    mediaPlayer.seekToNextMediaItem()
 }
+
+
 
 
 data class Music(
@@ -424,8 +427,10 @@ private fun getPlayList(): List<Music> {
 }
 */
 
+
+
 /** Mock data of playlist Strings */
-private fun getPlaylistNames(playlists : MutableMap<String, MutableList<Audio>>): List<String> {
+private fun getPlaylistNames(playlists: MutableMap<String, MutableList<MediaItem>>): List<String> {
     var names: MutableList<String> = mutableListOf();
 
     for (name in playlists) {
@@ -482,7 +487,7 @@ fun Title(x: String, y: String, modifier: Modifier = Modifier) {
 
 /** Export the current playlist */
 @Composable
-fun Export(playlistName: String, playlist: MutableList<MainActivity.Audio>?, context: Context) {
+fun Export(playlistName: String, playlist: MutableList<MediaItem>?, context: Context) {
     Button(
         onClick = { toM3U(playlistName, playlist, context) },
         modifier = Modifier
@@ -498,7 +503,7 @@ fun Export(playlistName: String, playlist: MutableList<MainActivity.Audio>?, con
 
 /** Edit the playlist */
 @Composable
-fun Edit(playlist: MutableList<Audio>?) {
+fun Edit(playlist: MutableList<MediaItem>?) {
 
     var mExpanded by remember { mutableStateOf(false) }
 
@@ -523,7 +528,7 @@ fun Edit(playlist: MutableList<Audio>?) {
                 playlist.remove(song)
                 mExpanded = false
             },
-                text = { Text(text = song.name) }
+                text = { Text(text = song.mediaMetadata.title.toString()) }
             )
         }
     }
@@ -557,7 +562,7 @@ fun AreYouSureAlert(songName : String, playlistName: String) : Boolean
  * selectPlaylist(): Function to select playlist based off name.
  * */
 @Composable
-fun PlaylistSelect(playlists: MutableMap<String, MutableList<Audio>>, selectPlaylist: (String) -> Unit) {
+fun PlaylistSelect(playlists: MutableMap<String, MutableList<MediaItem>>, selectPlaylist: (String) -> Unit) {
     // dropdown menu for playlist select
     // Declaring a boolean value to store
     // the expanded state of the Text Field
@@ -648,7 +653,7 @@ fun CreatePlaylistAlert() {
     AlertDialog(
         onDismissRequest = { showCreation = false },
         title = {
-            Text(text = "Create new playlist?",)
+            Text(text = "Create new playlist?")
         },
         text = { TextField(
             value = text.value,
@@ -672,27 +677,52 @@ fun CreatePlaylistAlert() {
 
 
 
-@RequiresApi(Build.VERSION_CODES.O)
-@OptIn(ExperimentalFoundationApi::class)
+@RequiresApi(Build.VERSION_CODES.Q)
 @Composable
 fun Player(
-    player: MediaPlayer,
-    currentSong: MainActivity.Audio,
+    player: ExoPlayer,
     context: Context,
-    image: Bitmap,
+    onChange: () -> Unit,
     onAccept: () -> Unit,
     onReject: () -> Unit,
-    skipSong: () -> Unit,
-    playlists : MutableMap<String, MutableList<Audio>>,
+    playlists: MutableMap<String, MutableList<MediaItem>>,
     selectPlaylist: (name: String) -> Unit,
-    currentPlaylistName: String,
-    previousSong: () -> Unit
-) {
+    currentPlaylistName: String) {
     var modifier = Modifier.fillMaxWidth()
 
     // Allows to control card like swiping
     val twyperController = rememberTwyperController()
 
+    val currentSongMetadata = remember {
+        mutableStateOf(player.mediaMetadata)
+    }
+
+    LaunchedEffect(currentSongMetadata) {
+        currentSongMetadata.value = player.mediaMetadata
+    }
+    /**
+     * Whenever the song changes set the new metadata values correctly.
+     * This is done to prevent naturally completing a song but not having the title, and other stuff change
+     */
+    player.addListener(object: Player.Listener {
+        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            super.onMediaItemTransition(mediaItem, reason)
+            currentSongMetadata.value = player.mediaMetadata
+        }
+    })
+
+
+    var image : Bitmap
+    try {
+        image = currentSongMetadata.value.artworkUri?.let {
+            context.contentResolver.loadThumbnail(
+                it, android.util.Size(512, 512), null
+            )
+        }!!
+    } catch (e: IOException ) {
+        // For some reason this image isn't displayed, it's a gray square instead.
+        image = R.drawable.reject.toDrawable().toBitmap(width = 512, height = 512)
+    }
 
 
     Column (
@@ -703,14 +733,23 @@ fun Player(
         PlaylistSelect(playlists, selectPlaylist = {selectPlaylist(currentPlaylistName)})
         // song title (replace with song name variable
 
-        SongTitle(title = currentSong.title)
+        SongTitle(title = currentSongMetadata.value.title.toString())
         // Card swiping view
-        CardSwipe(artist = currentSong.artist,
+        CardSwipe(
+            artist = currentSongMetadata.value.artist.toString(),
             image = image,
             twyperController = twyperController,
-            onAccept =  { onAccept() },
-            onReject = { onReject() },
-            items = listOf(currentSong)
+            onAccept =  {
+                onAccept()
+                player.seekToNextMediaItem()
+                currentSongMetadata.value = player.mediaMetadata
+            },
+            onReject = {
+                player.seekToNextMediaItem()
+                currentSongMetadata.value = player.mediaMetadata
+
+            },
+            items = listOf(currentSongMetadata.value)
         )
 
 
@@ -721,61 +760,66 @@ fun Player(
         // accept / reject button
         AcceptReject(
             onAccept = {
-                println(currentSong)
                 twyperController.swipeRight()
             },
             onReject = {
                 twyperController.swipeLeft()
             }
         )
-        var totalDuration = currentSong.duration.toLong()
 
-        var currentTime by remember {
-            mutableLongStateOf(player.currentPosition.toLong())
+        // Following this guide for this stuff:
+        // https://alitalhacoban.medium.com/build-music-player-with-jetpack-compose-media3-exoplayer-cf3d44a0a67a
+        val isPlaying = remember {
+            mutableStateOf(false)
         }
-        run {
-            CoroutineScope(Dispatchers.IO).launch {
-                // Reduce timeMillis to make smoother, but obv cost more on this thread)
-                // 1s seems good to not make seeking all laggy
-                delay(1000)
-                try {
-                    if (player.isPlaying)
-                    {
-                        currentTime = player.currentPosition.toLong()
-                    }
-                }
-                catch (e: IllegalStateException) {
-                    println("Trying to get player when doesn't exist: " + e)
-                }
+        val currentPosition = remember {
+            mutableLongStateOf(0)
+        }
+        val sliderPosition = remember {
+            mutableLongStateOf(0)
+        }
+        val totalDuration = remember {
+            mutableLongStateOf(0)
+        }
 
+
+        // I think the point of the LaunchedEffects is to make sure that the thing is in the right thread (main)
+        LaunchedEffect(key1 = player.currentPosition, key2 = player.isPlaying) {
+            delay(1000)
+            currentPosition.longValue = player.currentPosition
+            MainActivity.previousSongPlayTime(currentPosition.longValue)
+        }
+
+        LaunchedEffect(sliderPosition) {
+            sliderPosition.longValue = currentPosition.longValue
+        }
+
+        LaunchedEffect(player.duration) {
+            if (player.duration > 0) {
+                    totalDuration.longValue = player.duration
             }
         }
+
         // music progress bar
         TrackSlider(
-            value = currentTime.toFloat(),
+            value = currentPosition.longValue.toFloat(),
             onValueChange = {
-                println(it)
-                currentTime = it.toLong()
-                // Needs to be 'previous' so if dragged to end doesn't crash
-                if (player.duration > it.toLong()) {
-                    player.seekTo(it.toLong(), MediaPlayer.SEEK_PREVIOUS_SYNC)
-
-                }
-                else {
-                    currentTime = 0
-                    player.seekTo(0)
-                }
-
+                // No clue why sometimes it works without this line first
+                sliderPosition.longValue = it.toLong()
+                // Sometimes works with just it.toLong(), but sometimes not
+                currentPosition.longValue = sliderPosition.longValue
             },
             onValueChangeFinished = {
-                //currentTime = sliderPosition.longValue
-                //player.seekTo(sliderPosition.longValue.toInt())
+                // Again, no clue why this is required, but whatever
+                currentPosition.longValue = currentPosition.longValue
+                player.seekTo(currentPosition.longValue)
+
             },
-            songDuration = totalDuration.toFloat()
+            songDuration = totalDuration.longValue.toFloat()
         )
         // music times
-        var minutes = totalDuration / (60000)
-        var seconds = (totalDuration / 1000) % 60
+        var minutes = totalDuration.value / (60000)
+        var seconds = (totalDuration.longValue / 1000) % 60
         var minutesString = minutes.toString()
         var secondsString = seconds.toString()
         if (minutes < 10) {
@@ -787,11 +831,15 @@ fun Player(
         TrackSliderTime("00:00", "$minutesString:$secondsString")
         // music controls
         Playbar(
-            currentSong,
             player,
-            context,
-            skipSong = { skipSong() },
-            previousSong = { previousSong() })
+            skipSong = {
+                player.seekToNextMediaItem()
+                currentSongMetadata.value = player.mediaMetadata
+                       },
+            previousSong = {
+                player.seekToPreviousMediaItem()
+                currentSongMetadata.value = player.mediaMetadata
+            })
     }
 
 
@@ -803,11 +851,10 @@ fun SongTitle(title: String) {
     Text(
         text = title,
         modifier = Modifier
-            .padding(top = 5.dp)
-            ,
+            .padding(top = 5.dp),
         color = Color.White,
 
-    )
+        )
 }
 
 
@@ -840,9 +887,10 @@ fun MusicImage(image: Bitmap) {
 }
 
 @Composable
-fun CardSwipe(image: Bitmap, artist: String, twyperController: TwyperController,
-              onAccept: () -> Unit,
-              onReject: () -> Unit, items : List<Any>) {
+fun CardSwipe(
+    image: Bitmap, artist: String, twyperController: TwyperController,
+    onAccept: () -> Unit,
+    onReject: () -> Unit, items: List<Any>) {
     Twyper(items = items, twyperController = twyperController, onItemRemoved = {
             item, direction ->
         if (direction == SwipedOutDirection.LEFT) {
@@ -910,6 +958,7 @@ fun Reject(onReject: () -> Unit) {
     Button(
         onClick = {
 
+
             onReject()},
         colors = ButtonColors(Color.Red, Color.Red, Color.Red, Color.Red),
         modifier = Modifier
@@ -964,6 +1013,7 @@ fun TrackSlider(
 
             onValueChangeFinished()
 
+
         },
         valueRange = 0f..songDuration,
         colors = SliderDefaults.colors(
@@ -980,9 +1030,7 @@ fun TrackSlider(
 
 @Composable
 fun Playbar(
-    currentSong: Audio,
-    mediaPlayer: MediaPlayer,
-    context: Context,
+    mediaPlayer: ExoPlayer,
     skipSong: () -> Unit,
     previousSong: () -> Unit
 ) {
@@ -994,23 +1042,22 @@ fun Playbar(
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         PreviousButton(previousSong)
-        PlayButton(currentSong.uri, mediaPlayer, context)
-        NextButton(skipSong = {
-            skipSong()
-
-        })
+        PlayButton(mediaPlayer)
+        NextButton(skipSong)
     }
 }
 
 @Composable
-fun PlayButton(songPath : Uri, mediaPlayer: MediaPlayer, context: Context, ) {
+fun PlayButton(mediaPlayer: ExoPlayer) {
     var playing by remember {
         mutableStateOf(mediaPlayer.isPlaying)
     }
     if (!playing)
     {
         Button(
-            onClick = { mediaPlayer.start(); playing = true  },
+            //TODO: Make sure this .play() doesn't cause an error since it isn't prepared
+            // it shouldn't since the player should have a loaded playlist
+            onClick = {  mediaPlayer.play(); playing = true  },
             colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.0F))
         ) {
             Image(painter = painterResource(id = R.drawable.play), contentDescription = null)
@@ -1032,7 +1079,7 @@ fun PlayButton(songPath : Uri, mediaPlayer: MediaPlayer, context: Context, ) {
 @Composable
 fun PreviousButton(PreviousSong : () -> Unit) {
     Button(
-        onClick = { PreviousSong() },
+        onClick = { PreviousSong();  },
         colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.0F))
         ) {
         Image(painter = painterResource(id = R.drawable.previous), contentDescription = null)
@@ -1162,7 +1209,8 @@ fun createFile(playlistName: String, playlist: String, context: Context/*TODO: C
  *
  *
  * */
-fun toM3U(playlistName: String, playlist: MutableList<MainActivity.Audio>?, context: Context) : String {
+@androidx.annotation.OptIn(UnstableApi::class)
+fun toM3U(playlistName: String, playlist: MutableList<MediaItem>?, context: Context) : String {
     // grab a playlist
     var out: StringBuilder = StringBuilder()
 
@@ -1170,8 +1218,17 @@ fun toM3U(playlistName: String, playlist: MutableList<MainActivity.Audio>?, cont
     val path = Environment.getExternalStoragePublicDirectory("Music")
     if (playlist != null) {
         for (song in playlist) {
-            out.append("#EXTINF:").append(song.duration / 1000).append(",").append(song.artist).append(" - ").append(song.name).append("\n")
-            out.append(path).append("/").append(song.name).append("\n")
+            var metaData = song.mediaMetadata
+            // Using metaData.durationMS here would necessitate deprecated/experimental stuff
+            // But easier than bringing the music player all the way here
+            //
+            out.append("#EXTINF:").append(song.mediaMetadata.durationMs?.div(1000) ?: 1).append(",")
+                .append(metaData.artist.toString())
+                .append(" - ")
+                // Title is the actual name of the song (maybe switch with display title)
+                .append(metaData.title).append("\n")
+            // Display title is the file name
+            out.append(path).append("/").append(song.mediaMetadata.displayTitle).append("\n")
         }
     }
     // attempt to write locally to downloads?
@@ -1191,7 +1248,7 @@ fun toM3U(playlistName: String, playlist: MutableList<MainActivity.Audio>?, cont
 /** Function for use in NextButton and Accept().
  * Requires both playlist and currently playing song to be passed.
  * */
-fun addSongToPlaylist(playlist: MutableList<MainActivity.Audio>, song: MainActivity.Audio) {
+fun addSongToPlaylist(playlist: MutableList<MediaItem>, song: MediaItem) {
     playlist.add(song)
     // print playlist
     println(playlist.toString())
