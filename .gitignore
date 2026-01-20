@@ -33,6 +33,7 @@ captures/
 *.apk
 output.json
 .idea/
+.idea/*
 # IntelliJ
 *.iml
 .idea/
