@@ -92,25 +92,9 @@ class MainActivity : AppCompatActivity() {
             enableEdgeToEdge()
 
 
-//         setContent {
-//             FindingWavTheme {
-//                 Scaffold(modifier =
+         setContent {
 
-//                 Modifier.fillMaxSize()) { innerPadding ->
-//                 }
-
-//                 // main ui
-//                 Row(
-//                     horizontalArrangement = Arrangement.spacedBy(2.dp),
-//                     verticalAlignment = Alignment.CenterVertically,
-//                     modifier = Modifier.padding(top=5.dp)
-//                 ) {
-
-//                     // Added duration as individual parameter to avoid using deprecated MediaMetaData.durationMS
-//                     Export(currentPlaylistName, getPlaylist(currentPlaylistName), applicationContext)
-//                     Title("Finding Wuv", "Playlist Creation Mode", Modifier)
-//                     Edit(getPlaylist(currentPlaylistName))
-//                 }
+                 }
         setContent {
             // Move into own composable function for safety
             PlayerScreen(player,

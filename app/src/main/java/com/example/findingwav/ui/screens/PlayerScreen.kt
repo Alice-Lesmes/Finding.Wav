@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -29,6 +30,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
@@ -82,17 +84,31 @@ import kotlin.collections.forEach
 @RequiresApi(Build.VERSION_CODES.Q)
 @Composable
 fun PlayerScreen(musicPlayer : MusicPlayer, context : Context) {
+
     FindingWavTheme {
-//            Scaffold(modifier =
-//
-//                Modifier.fillMaxSize()) { innerPadding ->
-//            }
+        Scaffold(modifier =
+
+            Modifier.fillMaxSize()) { innerPadding ->
+        }
 
         // main ui
-        Title("Finding Wuv", "Playlist Creation Mode", Modifier)
-        // Added duration as individual parameter to avoid using deprecated MediaMetaData.durationMS
-        Export(musicPlayer.getCurrentPlaylistName(), musicPlayer.getPlaylist(musicPlayer.getCurrentPlaylistName()), context)
-        Edit(musicPlayer.getPlaylist(musicPlayer.getCurrentPlaylistName()))
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(top=5.dp)
+        ) {
+
+            // Added duration as individual parameter to avoid using deprecated MediaMetaData.durationMS
+            Export(
+                musicPlayer.getCurrentPlaylistName(),
+                musicPlayer.getPlaylist(musicPlayer.getCurrentPlaylistName()),
+                context
+            )
+            Title("Finding Wuv", "Playlist Creation Mode", Modifier)
+            // Added duration as individual parameter to avoid using deprecated MediaMetaData.durationMS
+
+            Edit(musicPlayer.getPlaylist(musicPlayer.getCurrentPlaylistName()))
+        }
 
         musicPlayer.player.prepare()
         val currentSong = remember {
@@ -183,7 +199,6 @@ private fun Edit(playlist: MutableList<MediaItem>?) {
 
     Button(onClick = { mExpanded = !mExpanded },
         modifier = Modifier
-            .padding(start = 280.dp, top = 20.dp)
             .onGloballyPositioned { coordinates -> mTextFieldSize = coordinates.size.toSize() * 5F }) {
         Image(painter = painterResource(id = R.drawable.edit), contentDescription = null)
     }
@@ -781,8 +796,7 @@ fun Title(x: String, y: String, modifier: Modifier = Modifier) {
     // the row is not row-ing
     Column(
         modifier = Modifier
-            .fillMaxWidth()
-            .background(Color.Red),
+            .fillMaxWidth(0.7f),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
 
@@ -790,7 +804,8 @@ fun Title(x: String, y: String, modifier: Modifier = Modifier) {
         Text(
             text = x,
             // does... something...
-            fontSize = 30.sp,  // specify size
+            fontSize = 20.sp,  // specify size
+            color = MaterialTheme.colorScheme.primary,
             // explanation from https://stackoverflow.com/questions/37754299/how-to-properly-set-line-height-for-android
             lineHeight = 10.sp,  // text size + padding (top and bottom) (pad = lineHeight - fontSize)
             textAlign = TextAlign.Center,
@@ -801,7 +816,8 @@ fun Title(x: String, y: String, modifier: Modifier = Modifier) {
         Text(
             text = y,
             //fontFamily = FontFamily.SansSerif,
-            fontSize = 20.sp,
+            fontSize = 15.sp,
+            color = MaterialTheme.colorScheme.secondary,
             textAlign = TextAlign.Center,
             // lineHeight = 10.sp,
             modifier = Modifier
@@ -815,8 +831,6 @@ fun Title(x: String, y: String, modifier: Modifier = Modifier) {
 fun Export(playlistName: String, playlist: MutableList<MediaItem>?, context: Context) {
     Button(
         onClick = { toM3U(playlistName, playlist, context) },
-        modifier = Modifier
-            .padding(start = 10.dp, top = 20.dp)
     ) {
         Image(
             painter = painterResource(id = R.drawable.export),
