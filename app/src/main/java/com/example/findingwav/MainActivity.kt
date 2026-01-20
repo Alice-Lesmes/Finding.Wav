@@ -30,6 +30,12 @@ import com.example.findingwav.ui.theme.FindingWavTheme
 import java.io.File
 import java.util.concurrent.TimeUnit
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+
 
 class MainActivity : AppCompatActivity() {
     private lateinit var player : MusicPlayer
@@ -37,13 +43,55 @@ class MainActivity : AppCompatActivity() {
     @RequiresApi(Build.VERSION_CODES.R)
     fun setSongList() {
         // If have permissions just do it
-        if (Environment.isExternalStorageManager()) {
+
+        if (Environment.isExternalStorageManager())
+        {
             player.addSongs(getAllMusic())
+        }
+        else {
+            // deprecated since we do not want to use external storage anymore
+            //startActivity(
+            //    Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+            //)
+            //ActivityResultContracts.RequestPermission
+            askForMusicPermission();
+            player.addSongs(getAllMusic())
+          
+        }
+    }
+    // Define what happens after the user clicks "Allow" or "Deny"
+    private val requestMusicPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            // Permission granted! You can now query MediaStore.
+            exoSongList = getAllMusic()
         } else {
-            startActivity(
-                Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
-            )
-            player.addSongs(getAllMusic())
+            // Permission denied.
+            // Show a message explaining why the app needs this feature.
+            Toast.makeText(this, "Music access is required to play songs", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun askForMusicPermission() {
+        // 1. Determine the correct permission based on Android version
+        val permissionName = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Manifest.permission.READ_MEDIA_AUDIO // Android 13+
+        } else {
+            Manifest.permission.READ_EXTERNAL_STORAGE // Android 12 and below
+        }
+
+        // 2. Check if we already have it
+        if (ContextCompat.checkSelfPermission(this, permissionName) == PackageManager.PERMISSION_GRANTED) {
+//            loadMusic() // Already allowed, just run your logic
+        } else {
+            // 3. Launch the dialog
+            requestMusicPermissionLauncher.launch(permissionName)
+        }
+
+    }
+
+
         }
     }
         @RequiresApi(Build.VERSION_CODES.R)
@@ -65,6 +113,25 @@ class MainActivity : AppCompatActivity() {
         enableEdgeToEdge()
 
 
+//         setContent {
+//             FindingWavTheme {
+//                 Scaffold(modifier =
+
+//                 Modifier.fillMaxSize()) { innerPadding ->
+//                 }
+
+//                 // main ui
+//                 Row(
+//                     horizontalArrangement = Arrangement.spacedBy(2.dp),
+//                     verticalAlignment = Alignment.CenterVertically,
+//                     modifier = Modifier.padding(top=5.dp)
+//                 ) {
+
+//                     // Added duration as individual parameter to avoid using deprecated MediaMetaData.durationMS
+//                     Export(currentPlaylistName, getPlaylist(currentPlaylistName), applicationContext)
+//                     Title("Finding Wuv", "Playlist Creation Mode", Modifier)
+//                     Edit(getPlaylist(currentPlaylistName))
+//                 }
         setContent {
             // Move into own composable function for safety
             PlayerScreen(player,
@@ -125,7 +192,7 @@ class MainActivity : AppCompatActivity() {
         // Greater than or = SelectionArgs
         val selection = "${MediaStore.Audio.Media.DURATION} >= ?"
         // 1 minute
-        val selectionArgs = arrayOf(TimeUnit.MILLISECONDS.toMinutes(1).toString())
+        val selectionArgs = arrayOf(TimeUnit.MILLISECONDS.toMinutes(60000).toString())
         val sortOrder = ""
 
 
@@ -246,8 +313,6 @@ private fun getPlaylistNames(playlists: MutableMap<String, MutableList<MediaItem
 fun retrievePlaylist(name: String) {
 
 }
-
-
 
 
 /*
