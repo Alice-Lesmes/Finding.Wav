@@ -40,32 +40,13 @@ import androidx.core.content.ContextCompat
 class MainActivity : AppCompatActivity() {
     private lateinit var player : MusicPlayer
 
-    @RequiresApi(Build.VERSION_CODES.R)
-    fun setSongList() {
-        // If have permissions just do it
-
-        if (Environment.isExternalStorageManager())
-        {
-            player.addSongs(getAllMusic())
-        }
-        else {
-            // deprecated since we do not want to use external storage anymore
-            //startActivity(
-            //    Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
-            //)
-            //ActivityResultContracts.RequestPermission
-            askForMusicPermission();
-            player.addSongs(getAllMusic())
-          
-        }
-    }
     // Define what happens after the user clicks "Allow" or "Deny"
     private val requestMusicPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
         if (isGranted) {
             // Permission granted! You can now query MediaStore.
-            exoSongList = getAllMusic()
+            player.addSongs(getAllMusic())
         } else {
             // Permission denied.
             // Show a message explaining why the app needs this feature.
@@ -84,6 +65,7 @@ class MainActivity : AppCompatActivity() {
         // 2. Check if we already have it
         if (ContextCompat.checkSelfPermission(this, permissionName) == PackageManager.PERMISSION_GRANTED) {
 //            loadMusic() // Already allowed, just run your logic
+            player.addSongs(getAllMusic())
         } else {
             // 3. Launch the dialog
             requestMusicPermissionLauncher.launch(permissionName)
@@ -91,9 +73,6 @@ class MainActivity : AppCompatActivity() {
 
     }
 
-
-        }
-    }
         @RequiresApi(Build.VERSION_CODES.R)
         @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -109,8 +88,8 @@ class MainActivity : AppCompatActivity() {
             // TODO: check if below code works for onMediaButtonAction, and for skip (double tap)
             // .setCallback()
             .build()
-        setSongList()
-        enableEdgeToEdge()
+        askForMusicPermission()
+            enableEdgeToEdge()
 
 
 //         setContent {
