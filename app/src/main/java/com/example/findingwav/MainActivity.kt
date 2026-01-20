@@ -93,6 +93,12 @@ import java.io.File
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+
 
 class MainActivity : AppCompatActivity() {
 
@@ -114,12 +120,48 @@ class MainActivity : AppCompatActivity() {
             //songList = getAllMusic()
         }
         else {
-            startActivity(
-                Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
-            )
+            // deprecated since we do not want to use external storage anymore
+            //startActivity(
+            //    Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+            //)
+            //ActivityResultContracts.RequestPermission
+            //exoSongList = getAllMusic()
+            askForMusicPermission();
             exoSongList = getAllMusic()
         }
     }
+    // Define what happens after the user clicks "Allow" or "Deny"
+    private val requestMusicPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            // Permission granted! You can now query MediaStore.
+            exoSongList = getAllMusic()
+        } else {
+            // Permission denied.
+            // Show a message explaining why the app needs this feature.
+            Toast.makeText(this, "Music access is required to play songs", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun askForMusicPermission() {
+        // 1. Determine the correct permission based on Android version
+        val permissionName = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Manifest.permission.READ_MEDIA_AUDIO // Android 13+
+        } else {
+            Manifest.permission.READ_EXTERNAL_STORAGE // Android 12 and below
+        }
+
+        // 2. Check if we already have it
+        if (ContextCompat.checkSelfPermission(this, permissionName) == PackageManager.PERMISSION_GRANTED) {
+//            loadMusic() // Already allowed, just run your logic
+        } else {
+            // 3. Launch the dialog
+            requestMusicPermissionLauncher.launch(permissionName)
+        }
+
+    }
+
     private var playLists : MutableMap<String, MutableList<MediaItem>> = mutableMapOf<String, MutableList<MediaItem>>(currentPlaylistName to currentPlaylist)
 
     public fun getSongList() : MutableList<MediaItem>
@@ -199,10 +241,18 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 // main ui
-                Title("Finding Wuv", "Playlist Creation Mode", Modifier)
-                // Added duration as individual parameter to avoid using deprecated MediaMetaData.durationMS
-                Export(currentPlaylistName, getPlaylist(currentPlaylistName), applicationContext)
-                Edit(getPlaylist(currentPlaylistName))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(top=5.dp)
+                ) {
+
+                    // Added duration as individual parameter to avoid using deprecated MediaMetaData.durationMS
+                    Export(currentPlaylistName, getPlaylist(currentPlaylistName), applicationContext)
+                    Title("Finding Wuv", "Playlist Creation Mode", Modifier)
+                    Edit(getPlaylist(currentPlaylistName))
+                }
+
 
                 musicPlayer.setMediaItems(exoSongList)
                 musicPlayer.prepare()
@@ -326,7 +376,7 @@ class MainActivity : AppCompatActivity() {
         // Greater than or = SelectionArgs
         val selection = "${MediaStore.Audio.Media.DURATION} >= ?"
         // 1 minute
-        val selectionArgs = arrayOf(TimeUnit.MILLISECONDS.toMinutes(1).toString())
+        val selectionArgs = arrayOf(TimeUnit.MILLISECONDS.toMinutes(60000).toString())
         val sortOrder = ""
 
 
@@ -377,6 +427,7 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+        ExoDataList.shuffle()
         return ExoDataList
     }
 
@@ -447,23 +498,22 @@ fun retrievePlaylist(name: String) {
 
 }
 
-
-
 @Composable
 fun Title(x: String, y: String, modifier: Modifier = Modifier) {
     // the row is not row-ing
     Column(
         modifier = Modifier
-            .fillMaxWidth()
-            .background(Color.Red),
+            .fillMaxWidth(0.7f),
+            //.background(Color.Red),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
 
         ) {
         Text(
             text = x,
+            color = Color.White,
             // does... something...
-            fontSize = 30.sp,  // specify size
+            fontSize = 20.sp,  // specify size
             // explanation from https://stackoverflow.com/questions/37754299/how-to-properly-set-line-height-for-android
             lineHeight = 10.sp,  // text size + padding (top and bottom) (pad = lineHeight - fontSize)
             textAlign = TextAlign.Center,
@@ -474,7 +524,8 @@ fun Title(x: String, y: String, modifier: Modifier = Modifier) {
         Text(
             text = y,
             //fontFamily = FontFamily.SansSerif,
-            fontSize = 20.sp,
+            fontSize = 15.sp,
+            color = Color.White,
             textAlign = TextAlign.Center,
             // lineHeight = 10.sp,
             modifier = Modifier
@@ -491,7 +542,7 @@ fun Export(playlistName: String, playlist: MutableList<MediaItem>?, context: Con
     Button(
         onClick = { toM3U(playlistName, playlist, context) },
         modifier = Modifier
-            .padding(start = 10.dp, top = 20.dp)
+            .padding(start = 10.dp), // prev top 20.dp
     ) {
         Image(
             painter = painterResource(id = R.drawable.export),
@@ -511,7 +562,7 @@ fun Edit(playlist: MutableList<MediaItem>?) {
 
     Button(onClick = { mExpanded = !mExpanded },
         modifier = Modifier
-            .padding(start = 280.dp, top = 20.dp)
+            //.padding(start = 280.dp, top = 20.dp)
             .onGloballyPositioned { coordinates -> mTextFieldSize = coordinates.size.toSize() * 5F }) {
         Image(painter = painterResource(id = R.drawable.edit), contentDescription = null)
     }

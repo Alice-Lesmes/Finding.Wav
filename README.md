@@ -17,3 +17,4 @@ An app to help you find the songs that you *actually* want, or... hear me out...
 ---
 
 Card (Dating-app swiping) animation and functionality from [Twyper](https://github.com/theapache64/twyper)
+API Level: 31
