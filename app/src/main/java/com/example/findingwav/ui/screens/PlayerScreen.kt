@@ -63,10 +63,10 @@ import androidx.media3.common.Player.MEDIA_ITEM_TRANSITION_REASON_SEEK
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import com.example.findingwav.MainActivity
-import com.example.findingwav.MainActivity.Companion.previousSongTime
+import com.example.findingwav.MusicPlayer
+import com.example.findingwav.NextOpts
 import com.example.findingwav.R
-import com.example.findingwav.addSongToPlaylist
-import com.example.findingwav.getPlaylistNames
+import com.example.findingwav.data.NECESSARY_PLAYTIME
 import com.example.findingwav.toM3U
 import com.example.findingwav.ui.theme.FindingWavTheme
 import com.github.theapache64.twyper.SwipedOutDirection
@@ -81,10 +81,7 @@ import kotlin.collections.forEach
 
 @RequiresApi(Build.VERSION_CODES.Q)
 @Composable
-fun Main(musicPlayer : ExoPlayer,
-         currentPlaylistName : String,
-         applicationContext : Context,
-         getPlaylist : ) {
+fun Main(musicPlayer : MusicPlayer, context : Context) {
     FindingWavTheme {
 //            Scaffold(modifier =
 //
@@ -94,18 +91,17 @@ fun Main(musicPlayer : ExoPlayer,
         // main ui
         Title("Finding Wuv", "Playlist Creation Mode", Modifier)
         // Added duration as individual parameter to avoid using deprecated MediaMetaData.durationMS
-        Export(currentPlaylistName, getPlaylist(currentPlaylistName), applicationContext)
-        Edit(MainActivity.getPlaylist(currentPlaylistName))
+        Export(musicPlayer.getCurrentPlaylistName(), musicPlayer.getPlaylist(musicPlayer.getCurrentPlaylistName()), context)
+        Edit(musicPlayer.getPlaylist(musicPlayer.getCurrentPlaylistName()))
 
-        musicPlayer.setMediaItems(exoSongList)
-        musicPlayer.prepare()
+        musicPlayer.player.prepare()
         val currentSong = remember {
             mutableStateOf(MediaItem.Builder().build())
         }
         val currentSongMetadata = remember {
             mutableStateOf(MediaItem.Builder().build().mediaMetadata)
         }
-        currentSong.value = getCurrentSong(musicPlayer)
+        currentSong.value = musicPlayer.getCurrentSong(false)!!
         currentSongMetadata.value = currentSong.value.mediaMetadata
         // Can move this basically anywhere as long as it activates and can properly
         /**
@@ -113,19 +109,20 @@ fun Main(musicPlayer : ExoPlayer,
          * because the song automatically finished
          */
 
-        musicPlayer.addListener(object : Player.Listener {
+
+        musicPlayer.player.addListener(object : androidx.media3.common.Player.Listener {
             @androidx.annotation.OptIn(UnstableApi::class)
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
 
-                println("INDEX: " + musicPlayer.previousMediaItemIndex)
+                println("INDEX: " + musicPlayer.player.previousMediaItemIndex)
                 // If it automatically transitioned to next song
                 if (reason == MEDIA_ITEM_TRANSITION_REASON_AUTO) {
                     println("AUTO REASON")
-                    val completedSong = musicPlayer.getMediaItemAt(
-                        musicPlayer.previousMediaItemIndex)
+                    val completedSong = musicPlayer.player.getMediaItemAt(
+                        musicPlayer.player.previousMediaItemIndex)
                     // Assures not null (optional) i think
                     completedSong?.let {
-                        addSongToPlaylist(currentPlaylist,
+                        musicPlayer.addSong(
                             it
                         )
                     }
@@ -133,34 +130,37 @@ fun Main(musicPlayer : ExoPlayer,
                     // Really not needed but whatever
                     if (reason == MEDIA_ITEM_TRANSITION_REASON_SEEK) {
                         println("SEEK REASON")
-                        val completedSong = musicPlayer.getMediaItemAt(
-                            musicPlayer.previousMediaItemIndex)
+                        val completedSong = musicPlayer.player.getMediaItemAt(
+                            musicPlayer.player.previousMediaItemIndex)
                         // The `!contains` prevents duplicates being added to playlist
-                        if (!currentPlaylist.contains(completedSong) && previousSongTime > (0.9 * completedSong.mediaMetadata.durationMs!!)) {
-                            println("Over 90% PLAYED!")
-                            addSongToPlaylist(currentPlaylist, completedSong)
+                        if (!musicPlayer.getCurrentPlaylist().contains(completedSong) &&
+                            musicPlayer.previousSongTime >
+                                (NECESSARY_PLAYTIME * completedSong.mediaMetadata.durationMs!!)) {
+                            println("Over ${NECESSARY_PLAYTIME * 100}% PLAYED!")
+                            musicPlayer.addSong(completedSong)
                         }
                     }
                 }
             }
         })
 
-        androidx.media3.common.Player(
+        // Idk what this really does, uh, god help us all
+        Player(
             musicPlayer,
-            applicationContext,
+            context,
             onChange = {
-                currentSong.value = musicPlayer.currentMediaItem!!
+                currentSong.value = musicPlayer.player.currentMediaItem!!
             },
             onAccept = {
-                musicPlayer.currentMediaItem?.let { addSongToPlaylist(currentPlaylist, it) }
+                musicPlayer.player.currentMediaItem?.let {musicPlayer.nextSong(NextOpts.FORCEADD) }
             },
             onReject = {
-                currentSong.value = getCurrentSong(musicPlayer)
+                currentSong.value = musicPlayer.getCurrentSong(false)!!
 
             },
-            playLists,
-            selectPlaylist = { setCurrentPlaylist(currentPlaylistName) },
-            currentPlaylistName
+            musicPlayer.getPlaylists(),
+            selectPlaylist = { musicPlayer.setCurrentPlaylist(musicPlayer.getCurrentPlaylistName()) },
+            musicPlayer.getCurrentPlaylistName()
         )
     }
 }
@@ -225,7 +225,6 @@ fun AreYouSureAlert(songName : String, playlistName: String) : Boolean
             }
         )
     }
-    else return delete
     return delete
 }
 
@@ -246,7 +245,8 @@ fun PlaylistSelect(playlists: MutableMap<String, MutableList<MediaItem>>, select
     var mExpanded by remember { mutableStateOf(false) }
 
     // Create a list of cities
-    val mPlaylist = getPlaylistNames(playlists)
+
+    val mPlaylist = playlists.keys
 
     // Create a string value to store the selected city
     var mSelectedText by remember { mutableStateOf("") }
@@ -357,7 +357,7 @@ fun CreatePlaylistAlert() {
 @RequiresApi(Build.VERSION_CODES.Q)
 @Composable
 fun Player(
-    player: ExoPlayer,
+    musicPlayer: MusicPlayer,
     context: Context,
     onChange: () -> Unit,
     onAccept: () -> Unit,
@@ -371,20 +371,20 @@ fun Player(
     val twyperController = rememberTwyperController()
 
     val currentSongMetadata = remember {
-        mutableStateOf(player.mediaMetadata)
+        mutableStateOf(musicPlayer.player.mediaMetadata)
     }
 
     LaunchedEffect(currentSongMetadata) {
-        currentSongMetadata.value = player.mediaMetadata
+        currentSongMetadata.value = musicPlayer.player.mediaMetadata
     }
     /**
      * Whenever the song changes set the new metadata values correctly.
      * This is done to prevent naturally completing a song but not having the title, and other stuff change
      */
-    player.addListener(object: Player.Listener {
+    musicPlayer.player.addListener(object: Player.Listener {
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             super.onMediaItemTransition(mediaItem, reason)
-            currentSongMetadata.value = player.mediaMetadata
+            currentSongMetadata.value = musicPlayer.player.mediaMetadata
         }
     })
 
@@ -418,12 +418,12 @@ fun Player(
             twyperController = twyperController,
             onAccept =  {
                 onAccept()
-                player.seekToNextMediaItem()
-                currentSongMetadata.value = player.mediaMetadata
+                musicPlayer.player.seekToNextMediaItem()
+                currentSongMetadata.value = musicPlayer.player.mediaMetadata
             },
             onReject = {
-                player.seekToNextMediaItem()
-                currentSongMetadata.value = player.mediaMetadata
+                musicPlayer.player.seekToNextMediaItem()
+                currentSongMetadata.value = musicPlayer.player.mediaMetadata
 
             },
             items = listOf(currentSongMetadata.value)
@@ -461,19 +461,19 @@ fun Player(
 
 
         // I think the point of the LaunchedEffects is to make sure that the thing is in the right thread (main)
-        LaunchedEffect(key1 = player.currentPosition, key2 = player.isPlaying) {
+        LaunchedEffect(key1 = musicPlayer.player.currentPosition, key2 = musicPlayer.player.isPlaying) {
             delay(1000)
-            currentPosition.longValue = player.currentPosition
-            MainActivity.previousSongPlayTime(currentPosition.longValue)
+            currentPosition.longValue = musicPlayer.player.currentPosition
+            musicPlayer.previousSongPlayTime(currentPosition.longValue)
         }
 
         LaunchedEffect(sliderPosition) {
             sliderPosition.longValue = currentPosition.longValue
         }
 
-        LaunchedEffect(player.duration) {
-            if (player.duration > 0) {
-                totalDuration.longValue = player.duration
+        LaunchedEffect(musicPlayer.player.duration) {
+            if (musicPlayer.player.duration > 0) {
+                totalDuration.longValue = musicPlayer.player.duration
             }
         }
 
@@ -489,7 +489,7 @@ fun Player(
             onValueChangeFinished = {
                 // Again, no clue why this is required, but whatever
                 currentPosition.longValue = currentPosition.longValue
-                player.seekTo(currentPosition.longValue)
+                musicPlayer.player.seekTo(currentPosition.longValue)
 
             },
             songDuration = totalDuration.longValue.toFloat()
@@ -508,14 +508,14 @@ fun Player(
         TrackSliderTime("00:00", "$minutesString:$secondsString")
         // music controls
         Playbar(
-            player,
+            musicPlayer.player,
             skipSong = {
-                player.seekToNextMediaItem()
-                currentSongMetadata.value = player.mediaMetadata
+                musicPlayer.player.seekToNextMediaItem()
+                currentSongMetadata.value = musicPlayer.player.mediaMetadata
             },
             previousSong = {
-                player.seekToPreviousMediaItem()
-                currentSongMetadata.value = player.mediaMetadata
+                musicPlayer.player.seekToPreviousMediaItem()
+                currentSongMetadata.value = musicPlayer.player.mediaMetadata
             })
     }
 

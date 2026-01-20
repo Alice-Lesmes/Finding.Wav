@@ -22,9 +22,8 @@ public enum class NextOpts {
  * A class used to hold the ExoPlayer player, and adds extra functionality.
  * Also controls Playlists, TODO: which should prob be their own class later.
  */
-public class MusicPlayer {
+public class MusicPlayer constructor(var player : ExoPlayer) {
 
-    public lateinit var player : ExoPlayer
     private lateinit var exoSongList : MutableList<MediaItem>
     private var songCount : Int = 0
 
@@ -37,17 +36,50 @@ public class MusicPlayer {
 
     private var playLists : MutableMap<String, MutableList<MediaItem>> = mutableMapOf<String, MutableList<MediaItem>>(currentPlaylistName to currentPlaylist)
 
+
     /**
      * Initialises a MusicPlayer Instance
+     * @see addSongs
+     * @see addSong
      */
-    fun onCreate(context : Context) {
-       player = ExoPlayer.Builder(context).build()
+    fun onCreate() {
     }
 
+    /**
+     * Initialises a MusicPlayer Instance with some songs pre-loaded
+     */
+    fun onCreate(context : Context, items : MutableList<MediaItem>) {
+        player.addMediaItems(items)
+    }
 
+    /**
+     * Adds a collection of songs to the music player (to be played)
+     * @param items the songs to be played
+     * @see MediaItem
+     */
+    fun addSongs(items : MutableList<MediaItem>) {
+        player.addMediaItems(items)
+    }
+
+    /**
+     * Adds a song to the music player to be played
+     * @param item song to be added
+     * @see MediaItem
+     */
+    fun addSong(item : MediaItem) {
+        player.addMediaItem(item)
+    }
+
+    /**
+     * Returns a copy of all the media items in the song player
+     * @return copy of mutable list of MediaItems
+     * @see MediaItem
+     */
     public fun getSongList() : MutableList<MediaItem>
     {
-        return exoSongList
+        var songList : MutableList<MediaItem> = mutableListOf<MediaItem>()
+        songList.addAll(exoSongList)
+        return songList
     }
 
     public fun getCurrentPlaylist() : MutableList<MediaItem> {
@@ -61,6 +93,10 @@ public class MusicPlayer {
     }
     public fun getPlaylist(name : String) : MutableList<MediaItem>? {
         return playLists.get(name)
+    }
+
+    public fun getPlaylists() : MutableMap<String, MutableList<MediaItem>> {
+        return playLists
     }
 
     public fun getPreviousSong(player : ExoPlayer) : MediaItem
@@ -157,14 +193,10 @@ public class MusicPlayer {
     }
 
     // Used to check the previous song's play time (to see whether to add to playlist)
-    companion object {
-        var previousSongTime : Long = 0
-        public fun previousSongPlayTime(playTime : Long) {
-            previousSongTime = playTime
-        }
-
+    var previousSongTime : Long = 0
+    public fun previousSongPlayTime(playTime : Long) {
+        previousSongTime = playTime
     }
-
     /**
      * Moves to the next song while also executing adding logic to the current playlist
      * @param add whether to add when reaching NECESSARY_PLAYTIME of the song (NORMAL);
