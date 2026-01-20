@@ -81,7 +81,7 @@ import kotlin.collections.forEach
 
 @RequiresApi(Build.VERSION_CODES.Q)
 @Composable
-fun Main(musicPlayer : MusicPlayer, context : Context) {
+fun PlayerScreen(musicPlayer : MusicPlayer, context : Context) {
     FindingWavTheme {
 //            Scaffold(modifier =
 //
@@ -175,7 +175,7 @@ fun Main(musicPlayer : MusicPlayer, context : Context) {
 
 /** Edit the playlist */
 @Composable
-fun Edit(playlist: MutableList<MediaItem>?) {
+private fun Edit(playlist: MutableList<MediaItem>?) {
 
     var mExpanded by remember { mutableStateOf(false) }
 
@@ -229,7 +229,7 @@ fun AreYouSureAlert(songName : String, playlistName: String) : Boolean
 }
 
 @Composable
-fun SettingsSelect() {
+private fun SettingsSelect() {
 
 }
 
@@ -238,7 +238,7 @@ fun SettingsSelect() {
  * selectPlaylist(): Function to select playlist based off name.
  * */
 @Composable
-fun PlaylistSelect(playlists: MutableMap<String, MutableList<MediaItem>>, selectPlaylist: (String) -> Unit) {
+private fun PlaylistSelect(playlists: MutableMap<String, MutableList<MediaItem>>, selectPlaylist: (String) -> Unit) {
     // dropdown menu for playlist select
     // Declaring a boolean value to store
     // the expanded state of the Text Field
@@ -319,7 +319,7 @@ fun PlaylistSelect(playlists: MutableMap<String, MutableList<MediaItem>>, select
 
 // https://stackoverflow.com/questions/73455840/textfield-new-line-issue-in-alert-dialog-with-jetpack-compose
 @Composable
-fun CreatePlaylistAlert() {
+private fun CreatePlaylistAlert() {
     var showCreation by remember {
         mutableStateOf(false)
     }
@@ -356,7 +356,7 @@ fun CreatePlaylistAlert() {
 
 @RequiresApi(Build.VERSION_CODES.Q)
 @Composable
-fun Player(
+private fun Player(
     musicPlayer: MusicPlayer,
     context: Context,
     onChange: () -> Unit,
@@ -523,7 +523,7 @@ fun Player(
 }
 
 @Composable
-fun SongTitle(title: String) {
+private fun SongTitle(title: String) {
 
     Text(
         text = title,
@@ -806,11 +806,9 @@ fun Title(x: String, y: String, modifier: Modifier = Modifier) {
             // lineHeight = 10.sp,
             modifier = Modifier
                 .padding(bottom = 10.dp)
-
         )
     }
 }
-
 
 /** Export the current playlist */
 @Composable

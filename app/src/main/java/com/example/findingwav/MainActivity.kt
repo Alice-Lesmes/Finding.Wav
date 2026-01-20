@@ -24,7 +24,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import com.example.findingwav.MusicPlayer
-import com.example.findingwav.ui.screens.Main
+import com.example.findingwav.ui.screens.PlayerScreen
 import com.example.findingwav.ui.screens.Title
 import com.example.findingwav.ui.theme.FindingWavTheme
 import java.io.File
@@ -67,7 +67,7 @@ class MainActivity : AppCompatActivity() {
 
         setContent {
             // Move into own composable function for safety
-            Main(player,
+            PlayerScreen(player,
                 applicationContext)
         }
     }
