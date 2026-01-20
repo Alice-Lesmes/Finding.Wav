@@ -24,21 +24,31 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import com.example.findingwav.MusicPlayer
+import androidx.media3.common.Player
 import com.example.findingwav.ui.screens.PlayerScreen
 import com.example.findingwav.ui.screens.Title
 import com.example.findingwav.ui.theme.FindingWavTheme
 import java.io.File
 import java.util.concurrent.TimeUnit
 
+// permission related???
 import android.Manifest
 import android.content.pm.PackageManager
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 
+// persistent notification related
+import androidx.media3.session.MediaController
+import androidx.media3.session.SessionToken
+import com.google.common.util.concurrent.ListenableFuture
+import com.google.common.util.concurrent.MoreExecutors
+import android.content.ComponentName
 
 class MainActivity : AppCompatActivity() {
-    private lateinit var player : MusicPlayer
+    //private lateinit var player : MusicPlayer
+    private var player: Player? = null // Use generic Player interface; NOT TO BE CONFUSED WITH PLAYER.KT
+    private var controllerFuture: ListenableFuture<MediaController>? = null
 
     // Define what happens after the user clicks "Allow" or "Deny"
     private val requestMusicPermissionLauncher = registerForActivityResult(
@@ -46,7 +56,8 @@ class MainActivity : AppCompatActivity() {
     ) { isGranted: Boolean ->
         if (isGranted) {
             // Permission granted! You can now query MediaStore.
-            player.addSongs(getAllMusic())
+            player?.setMediaItems(getAllMusic())
+            player?.prepare()
         } else {
             // Permission denied.
             // Show a message explaining why the app needs this feature.
@@ -54,6 +65,9 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /** To be or not to be given permission
+     * Just call this to ask for consent bro
+     */
     fun askForMusicPermission() {
         // 1. Determine the correct permission based on Android version
         val permissionName = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -65,40 +79,63 @@ class MainActivity : AppCompatActivity() {
         // 2. Check if we already have it
         if (ContextCompat.checkSelfPermission(this, permissionName) == PackageManager.PERMISSION_GRANTED) {
 //            loadMusic() // Already allowed, just run your logic
-            player.addSongs(getAllMusic())
+            player?.setMediaItems(getAllMusic())
+            player?.prepare()
         } else {
             // 3. Launch the dialog
             requestMusicPermissionLauncher.launch(permissionName)
         }
 
     }
-
+    /** Mainly just ask for permission and enable things */
         @RequiresApi(Build.VERSION_CODES.R)
         @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        player = MusicPlayer(ExoPlayer.Builder(applicationContext).build())
+        //player = MusicPlayer(ExoPlayer.Builder(applicationContext).build())
         // Allows to play music when using changeSong() - OUTDATED
         // var musicPlayer = MediaPlayer()
         // Allows to play music when using changeSong(), new mediaPlayer version
         // This allows for peripherals (earphones) to properly interact with the player (not sure about skipping)
-        val mediaSession = MediaSession.Builder(applicationContext, player.player)
+        //val mediaSession = MediaSession.Builder(applicationContext, player.player)
             // Allows to activate custom code on event
             // Currently using it to act on skip or previous
             // TODO: check if below code works for onMediaButtonAction, and for skip (double tap)
             // .setCallback()
-            .build()
+         //   .build()
         askForMusicPermission()
             enableEdgeToEdge()
 
 
-         setContent {
+    }
+    /** Start the music player */
+    @RequiresApi(Build.VERSION_CODES.R)
+    override fun onStart() {
+        super.onStart()
+        val sessionToken = SessionToken(this, ComponentName(this, PlaybackService::class.java))
 
-                 }
-        setContent {
-            // Move into own composable function for safety
-            PlayerScreen(player,
-                applicationContext)
+        controllerFuture = MediaController.Builder(this, sessionToken).buildAsync()
+        controllerFuture?.addListener({
+            // The controller is now ready!
+            val controller = controllerFuture?.get()
+            player = controller
+            if (player != null) {
+                setContent {
+                    // Move into own composable function for safety
+                    PlayerScreen((MusicPlayer) player!!,
+                        applicationContext)
+                }
+            }
+
+        }, MoreExecutors.directExecutor())
+
+
+    }
+
+    override fun onStop() {
+        super.onStop()
+        controllerFuture?.let {
+            MediaController.releaseFuture(it)
         }
     }
 

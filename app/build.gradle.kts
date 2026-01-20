@@ -55,6 +55,7 @@ dependencies {
     // Refer to https://github.com/androidx/media for latest release of exoplayer
     implementation("androidx.media3:media3-exoplayer:1.4.1")
     implementation("androidx.media3:media3-exoplayer-dash:1.4.1")
+    implementation("androidx.media3:media3-session:1.4.1")
     implementation("androidx.media3:media3-ui:1.4.1")
 
     implementation(libs.androidx.core.ktx)
