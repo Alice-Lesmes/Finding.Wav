@@ -406,16 +406,18 @@ private fun Player(
     })
 
 
-    var image : Bitmap
+    var image: Bitmap? = null
     try {
         image = currentSongMetadata.value.artworkUri?.let {
-            context.contentResolver.loadThumbnail(
-                it, android.util.Size(512, 512), null
-            )
-        }!!
-    } catch (e: IOException ) {
-        // For some reason this image isn't displayed, it's a gray square instead.
-        image = R.drawable.reject.toDrawable().toBitmap(width = 512, height = 512)
+            context.contentResolver.loadThumbnail(it, android.util.Size(512, 512), null)
+        }
+    } catch (e: Exception) {
+        e.printStackTrace()
+    }
+
+    // Fallback if image failed to load OR was null
+    if (image == null) {
+        image = R.drawable.reject.toDrawable().toBitmap(512, 512)
     }
 
 
@@ -724,7 +726,7 @@ fun TrackSlider(
 
 @Composable
 fun Playbar(
-    mediaPlayer: ExoPlayer,
+    mediaPlayer: Player,
     skipSong: () -> Unit,
     previousSong: () -> Unit
 ) {
@@ -742,7 +744,7 @@ fun Playbar(
 }
 
 @Composable
-fun PlayButton(mediaPlayer: ExoPlayer) {
+fun PlayButton(mediaPlayer: Player) {
     var playing by remember {
         mutableStateOf(mediaPlayer.isPlaying)
     }

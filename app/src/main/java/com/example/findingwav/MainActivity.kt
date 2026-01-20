@@ -47,20 +47,21 @@ import android.content.ComponentName
 
 class MainActivity : AppCompatActivity() {
     //private lateinit var player : MusicPlayer
-    private var player: Player? = null // Use generic Player interface; NOT TO BE CONFUSED WITH PLAYER.KT
+    private var player: Player? = null // Use generic Player interface; NOT TO BE CONFUSED WITH PLAYER.KT.
     private var controllerFuture: ListenableFuture<MediaController>? = null
+    private var musicPlayerWrapper: MusicPlayer? = null
 
     // Define what happens after the user clicks "Allow" or "Deny"
     private val requestMusicPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
         if (isGranted) {
-            // Permission granted! You can now query MediaStore.
-            player?.setMediaItems(getAllMusic())
-            player?.prepare()
+            // FIX: Permission just granted, load the music now!
+            if (musicPlayerWrapper != null) {
+                musicPlayerWrapper?.addSongs(getAllMusic())
+                musicPlayerWrapper?.player?.prepare()
+            }
         } else {
-            // Permission denied.
-            // Show a message explaining why the app needs this feature.
             Toast.makeText(this, "Music access is required to play songs", Toast.LENGTH_SHORT).show()
         }
     }
@@ -76,13 +77,8 @@ class MainActivity : AppCompatActivity() {
             Manifest.permission.READ_EXTERNAL_STORAGE // Android 12 and below
         }
 
-        // 2. Check if we already have it
-        if (ContextCompat.checkSelfPermission(this, permissionName) == PackageManager.PERMISSION_GRANTED) {
-//            loadMusic() // Already allowed, just run your logic
-            player?.setMediaItems(getAllMusic())
-            player?.prepare()
-        } else {
-            // 3. Launch the dialog
+        // request if we dont have it
+        if (ContextCompat.checkSelfPermission(this, permissionName) != PackageManager.PERMISSION_GRANTED) {
             requestMusicPermissionLauncher.launch(permissionName)
         }
 
@@ -113,25 +109,32 @@ class MainActivity : AppCompatActivity() {
     override fun onStart() {
         super.onStart()
         val sessionToken = SessionToken(this, ComponentName(this, PlaybackService::class.java))
-
         controllerFuture = MediaController.Builder(this, sessionToken).buildAsync()
+
         controllerFuture?.addListener({
-            // The controller is now ready!
             val controller = controllerFuture?.get()
-            player = controller
-            if (player != null) {
+
+            if (controller != null) {
+                musicPlayerWrapper = MusicPlayer(controller)
+
+                // Check if we have permission AND if we need to load music
+                val hasPermission = ContextCompat.checkSelfPermission(
+                    this,
+                    if (Build.VERSION.SDK_INT >= 33) Manifest.permission.READ_MEDIA_AUDIO else Manifest.permission.READ_EXTERNAL_STORAGE
+                ) == PackageManager.PERMISSION_GRANTED
+
+                // Only add music if we have permission AND the player is empty (to avoid duplicates on restart)
+                if (hasPermission && controller.mediaItemCount == 0) {
+                    musicPlayerWrapper?.addSongs(getAllMusic())
+                    musicPlayerWrapper?.player?.prepare()
+                }
+
                 setContent {
-                    // Move into own composable function for safety
-                    PlayerScreen((MusicPlayer) player!!,
-                        applicationContext)
+                    PlayerScreen(musicPlayerWrapper!!, applicationContext)
                 }
             }
-
         }, MoreExecutors.directExecutor())
-
-
     }
-
     override fun onStop() {
         super.onStop()
         controllerFuture?.let {
