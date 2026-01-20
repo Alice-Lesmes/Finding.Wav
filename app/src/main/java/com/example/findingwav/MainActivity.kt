@@ -427,6 +427,7 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+        ExoDataList.shuffle()
         return ExoDataList
     }
 
