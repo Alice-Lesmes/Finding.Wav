@@ -93,6 +93,12 @@ import java.io.File
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+
 
 class MainActivity : AppCompatActivity() {
 
@@ -114,12 +120,48 @@ class MainActivity : AppCompatActivity() {
             //songList = getAllMusic()
         }
         else {
-            startActivity(
-                Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
-            )
+            // deprecated since we do not want to use external storage anymore
+            //startActivity(
+            //    Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+            //)
+            //ActivityResultContracts.RequestPermission
+            //exoSongList = getAllMusic()
+            askForMusicPermission();
             exoSongList = getAllMusic()
         }
     }
+    // Define what happens after the user clicks "Allow" or "Deny"
+    private val requestMusicPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            // Permission granted! You can now query MediaStore.
+            exoSongList = getAllMusic()
+        } else {
+            // Permission denied.
+            // Show a message explaining why the app needs this feature.
+            Toast.makeText(this, "Music access is required to play songs", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun askForMusicPermission() {
+        // 1. Determine the correct permission based on Android version
+        val permissionName = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Manifest.permission.READ_MEDIA_AUDIO // Android 13+
+        } else {
+            Manifest.permission.READ_EXTERNAL_STORAGE // Android 12 and below
+        }
+
+        // 2. Check if we already have it
+        if (ContextCompat.checkSelfPermission(this, permissionName) == PackageManager.PERMISSION_GRANTED) {
+//            loadMusic() // Already allowed, just run your logic
+        } else {
+            // 3. Launch the dialog
+            requestMusicPermissionLauncher.launch(permissionName)
+        }
+
+    }
+
     private var playLists : MutableMap<String, MutableList<MediaItem>> = mutableMapOf<String, MutableList<MediaItem>>(currentPlaylistName to currentPlaylist)
 
     public fun getSongList() : MutableList<MediaItem>
@@ -326,7 +368,7 @@ class MainActivity : AppCompatActivity() {
         // Greater than or = SelectionArgs
         val selection = "${MediaStore.Audio.Media.DURATION} >= ?"
         // 1 minute
-        val selectionArgs = arrayOf(TimeUnit.MILLISECONDS.toMinutes(1).toString())
+        val selectionArgs = arrayOf(TimeUnit.MILLISECONDS.toMinutes(60000).toString())
         val sortOrder = ""
 
 
