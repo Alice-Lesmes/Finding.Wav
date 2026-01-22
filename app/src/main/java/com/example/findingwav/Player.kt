@@ -100,7 +100,12 @@ public class MusicPlayer(val player: Player) {
     }
 
 
-
+    /**
+     * Sets the current playlist to an already stored playlist, using name
+     * @param name name of pre-existing playlist
+     * @return true iff `name` exists in pre-existing playlist list and has swapped to player to
+     * that playlist, else false
+     */
     public fun setCurrentPlaylist(name: String) : Boolean {
         if (getPlaylist(name) != null) {
             currentPlaylist = getPlaylist(name)!!
