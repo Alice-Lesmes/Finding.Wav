@@ -80,7 +80,7 @@ import com.github.theapache64.twyper.rememberTwyperController
 import kotlinx.coroutines.delay
 import java.io.IOException
 import kotlin.collections.forEach
-
+import androidx.core.content.ContextCompat
 
 
 @RequiresApi(Build.VERSION_CODES.Q)
@@ -415,7 +415,8 @@ private fun Player(
 
     // Fallback if image failed to load OR was null
     if (image == null) {
-        image = R.drawable.reject.toDrawable().toBitmap(512, 512)
+        val noImageDrawable = ContextCompat.getDrawable(context, R.drawable.noimage)
+        image = noImageDrawable?.toBitmap(512, 512)
     }
 
 
@@ -431,7 +432,7 @@ private fun Player(
         // Card swiping view
         CardSwipe(
             artist = currentSongMetadata.value.artist.toString(),
-            image = image,
+            image = image!!,
             twyperController = twyperController,
             onAccept =  {
                 onAccept()
@@ -597,7 +598,11 @@ fun CardSwipe(
             onAccept()
         }
     }) {
-        Column {
+        Column (
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier
+                    .fillMaxWidth(0.8f)
+        ) {
             MusicImage(image = image)
 
             ArtistName(name = artist)
@@ -614,6 +619,7 @@ fun CardSwipe(
 fun ArtistName(name: String) {
     Text(
         text = name,
+        textAlign = TextAlign.Center,
         modifier = Modifier.padding(top = 5.dp)    )
 }
 
