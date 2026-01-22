@@ -56,6 +56,7 @@ class MainActivity : AppCompatActivity() {
     private var player: Player? = null // Use generic Player interface; NOT TO BE CONFUSED WITH PLAYER.KT.
     private var controllerFuture: ListenableFuture<MediaController>? = null
     private var musicPlayerWrapper: MusicPlayer? = null
+    private val CUTOFFTIME: Long = 60000
 
     // Define what happens after the user clicks "Allow" or "Deny"
     private val requestMusicPermissionLauncher = registerForActivityResult(
@@ -238,7 +239,7 @@ class MainActivity : AppCompatActivity() {
             while (cursor.moveToNext()) {
                 val isMusic = cursor.getString(music)
                 // Check that file is music file
-                if (isMusic.isNotEmpty()) {
+                if (isMusic.isNotEmpty() && cursor.getLong(durationColumn) > CUTOFFTIME) {
                     // Assign the values of the files to these
                     val id = cursor.getLong(idColumn)
                     val name = cursor.getString(nameColumn)
