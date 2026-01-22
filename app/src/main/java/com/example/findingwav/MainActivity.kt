@@ -45,6 +45,13 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
 import android.content.ComponentName
 
+// used to open m3u in downloads
+import android.app.DownloadManager
+import android.media.MediaScannerConnection
+import android.app.Activity
+import android.content.ContentValues
+import java.io.OutputStream
+
 class MainActivity : AppCompatActivity() {
     private var player: Player? = null // Use generic Player interface; NOT TO BE CONFUSED WITH PLAYER.KT.
     private var controllerFuture: ListenableFuture<MediaController>? = null
@@ -393,87 +400,4 @@ fun TitlePreview() {
     }
 }
 
-fun testM3U() {
-    var testSong: MainActivity.Audio = MainActivity.Audio(
-        Uri.parse("Music/Aja - Steely Dan (320).mp3"),
-        "Music/ Steely Dan - Aja",
-        "Album",
-        "Aja",
-        "Steely Dan",
-        480
-    )
 
-    var playlist: MutableList<MainActivity.Audio> = mutableListOf<MainActivity.Audio>()
-    playlist.add(testSong)
-
-    //println(toM3U("Main", playlist))
-}
-
-
-/**To be used to create the .m3u file into files. Maybe works. Needs to change some params*/
-// pass in playlistName
-// context is applicationContext
-fun createFile(playlistName: String, playlist: String, context: Context/*TODO: CHANGE THIS*/)
-{
-    // Request code for creating a PDF document.
-    //val path = context.getExternalFilesDir(null)
-    val path = Environment.getExternalStoragePublicDirectory("Music")
-    File(path, "$playlistName" + ".m3u").delete()
-    println("Path: " + path)
-    // TODO: Add name of playlist file
-    var playlistFile = File(path, "$playlistName" + ".m3u")
-    // TODO: actually put playlist content, try a forEach or idk
-
-    playlistFile.writeText("$playlist")
-
-}
-
-
-/**
- * Format is
- * #EXTM3U *Initialiser*
- * #EXTINF:RUNTIME(seconds),(noSpace)ARTIST_NAME - SONG NAME
- * FILEPATH/FILENAME
- *
- * example:
- * #EXTM3U
- * #EXTINF:480,Steely Dan - Aja
- * Music/Aja - Steely Dan (320).mp3
- *
- *
- * */
-@androidx.annotation.OptIn(UnstableApi::class)
-fun toM3U(playlistName: String, playlist: MutableList<MediaItem>?, context: Context) : String {
-    // grab a playlist
-    var out: StringBuilder = StringBuilder()
-
-    out.append("#EXTM3U\n")
-    val path = Environment.getExternalStoragePublicDirectory("Music")
-    if (playlist != null) {
-        for (song in playlist) {
-            var metaData = song.mediaMetadata
-            // Using metaData.durationMS here would necessitate deprecated/experimental stuff
-            // But easier than bringing the music player all the way here
-            //
-            out.append("#EXTINF:").append(song.mediaMetadata.durationMs?.div(1000) ?: 1).append(",")
-                .append(metaData.artist.toString())
-                .append(" - ")
-                // Title is the actual name of the song (maybe switch with display title)
-                .append(metaData.title).append("\n")
-            // Display title is the file name
-            out.append(path).append("/").append(song.mediaMetadata.displayTitle).append("\n")
-        }
-    }
-    // attempt to write locally to downloads?
-//    val filePath: String = "Playlists/$playlistName"
-//    val file = File(filePath)
-//
-//    file.writeText(out.toString())
-    createFile(playlistName, out.toString(), context)
-
-
-    println("Line written successfully")
-
-    return out.toString()
-
-}
