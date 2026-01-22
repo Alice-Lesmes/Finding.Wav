@@ -74,14 +74,7 @@ public class MusicPlayer(val player: Player) {
         return playLists
     }
 
-    // <--- CHANGE 4: Removed argument 'player: ExoPlayer'.
-    // We use the class property 'this.player' which is the generic interface.
-    public fun getPreviousSong() : MediaItem? {
-        if (player.previousMediaItemIndex != -1) {
-            return player.getMediaItemAt(player.previousMediaItemIndex)
-        }
-        return null
-    }
+
 
     public fun setCurrentPlaylist(name: String) : Boolean {
         if (getPlaylist(name) != null) {
@@ -130,6 +123,17 @@ public class MusicPlayer(val player: Player) {
     public fun previousSongPlayTime(playTime : Long) {
         previousSongTime = playTime
     }
+
+    // <--- CHANGE 4: Removed argument 'player: ExoPlayer'.
+    // We use the class property 'this.player' which is the generic interface.
+    public fun getPreviousSong() : MediaItem? {
+        if (player.previousMediaItemIndex != -1) {
+            return player.getMediaItemAt(player.previousMediaItemIndex)
+        }
+        return null
+    }
+
+    // TODO: Store previous song, instead of relying on player.previousMediaItemIndex
 
     public fun nextSong(add: NextOpts = NextOpts.NORMAL) : Boolean {
         previousSongPlayTime(player.currentPosition)
