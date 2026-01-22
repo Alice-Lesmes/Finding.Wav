@@ -100,7 +100,7 @@ fun testM3U() {
  * */
 @RequiresApi(Build.VERSION_CODES.Q)
 @androidx.annotation.OptIn(UnstableApi::class)
-fun toM3U(playlistName: String, playlist: MutableList<MediaItem>?, context: Context) : String {
+fun toM3U(playlistName: String, playlist: MutableList<MediaItem>?, context: Context) {
     // grab a playlist
     var out: StringBuilder = StringBuilder()
 
@@ -128,8 +128,5 @@ fun toM3U(playlistName: String, playlist: MutableList<MediaItem>?, context: Cont
 
     Toast.makeText(context, "Playlist saved successfully!", Toast.LENGTH_SHORT).show()
     openDownloadsFolder(context)
-
-    return out.toString() // to be fair I dont think we need to actually return this
-
 }
 

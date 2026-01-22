@@ -122,7 +122,13 @@ class MainActivity : AppCompatActivity() {
             val controller = controllerFuture?.get()
 
             if (controller != null) {
-                musicPlayerWrapper = MusicPlayer(controller)
+                // if music player alr exists, no need to wipe everything
+                if (musicPlayerWrapper == null) {
+                    musicPlayerWrapper = MusicPlayer(controller)
+                } else {
+                    musicPlayerWrapper?.player = controller
+                }
+
 
                 // Check if we have permission AND if we need to load music
                 val hasPermission = ContextCompat.checkSelfPermission(
