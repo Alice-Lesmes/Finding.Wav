@@ -83,6 +83,7 @@ fun PlayerScreen(musicPlayer : MusicPlayer, context : Context) {
 
             Modifier.fillMaxSize()) { innerPadding ->
         }
+//        occasionally
 
         // main ui
         Row(
@@ -461,8 +462,8 @@ private fun Player(
             musicPlayer.previousSongPlayTime(currentPosition.longValue)
         }
 
-        LaunchedEffect(key1 = musicPlayer.isPlaying(), key2 = !musicPlayer.isPlaying()) {
-            isPlaying.value = musicPlayer.isPlaying()
+        LaunchedEffect(key1 = musicPlayer.player.isPlaying(), key2 = !musicPlayer.player.isPlaying()) {
+            isPlaying.value = musicPlayer.player.isPlaying()
         }
 
         LaunchedEffect(sliderPosition) {

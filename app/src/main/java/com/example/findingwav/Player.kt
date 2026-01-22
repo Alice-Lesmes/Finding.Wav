@@ -29,11 +29,6 @@ public class MusicPlayer(val player: Player, songs: List<MediaItem>? = null) {
     private var currentPlaylistName : String = "Main"
     private var currentPlaylist : MutableList<MediaItem> = mutableListOf()
     private var playLists : MutableMap<String, MutableList<MediaItem>> = mutableMapOf(currentPlaylistName to currentPlaylist)
-    /**
-     * Value to tell whether the music player is playing, since for some reason it's not always
-     * consistent
-     */
-    private var isPlaying = false
 
     /**
      * Initialises a MusicPlayer Instance
@@ -194,9 +189,6 @@ public class MusicPlayer(val player: Player, songs: List<MediaItem>? = null) {
         return player.currentMediaItem
     }
 
-    public fun isPlaying() : Boolean {
-        return isPlaying
-    }
     /**
      * Determines the current song/MediaItem
      * @see 'To <b>query</b> this item for it's metadata use getCurrentSong().mediaMetadata.xxxx'
