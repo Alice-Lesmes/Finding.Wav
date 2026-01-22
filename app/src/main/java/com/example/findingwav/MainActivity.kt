@@ -242,11 +242,15 @@ class MainActivity : AppCompatActivity() {
                         Uri.parse("content://media/external/audio/albumart"),
                         albumId
                     )
+                    val extras = Bundle().apply {
+                        putString("raw_file_uri", contentURI.toString()) // <--- Storing the file path here
+                    }
                     val mediaItem = MediaItem.Builder().setMediaMetadata(MediaMetadata.Builder()
                         .setTitle(title)
                         .setAlbumTitle(album)
                         .setArtist(artist)
-                        .setArtworkUri(artworkUri)
+                        .setArtworkUri(artworkUri) // previously based on contentUri
+                        .setExtras(extras)
                         .setDurationMs(duration)
                         .setDisplayTitle(name).build())
                         .setUri(contentURI).build()
