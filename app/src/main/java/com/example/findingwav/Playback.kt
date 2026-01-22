@@ -6,16 +6,33 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 
+// used so tapping on notif takes you to app
+import android.app.PendingIntent
 class PlaybackService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
 
     override fun onCreate() {
         super.onCreate()
-        // 1. Build the Player
+        // Build the Player
         val player = ExoPlayer.Builder(this).build()
 
-        // 2. Build the MediaSession
-        mediaSession = MediaSession.Builder(this, player).build()
+        // notification intent
+        val intent = Intent(this, MainActivity::class.java).apply {
+            // SINGLE_TOP ensures we don't restart the app if it's already open
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            0,
+            intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        // Attach notif intent to the MediaSession
+        mediaSession = MediaSession.Builder(this, player)
+            .setSessionActivity(pendingIntent)
+            .build()
     }
 
     // This is the key method the system calls to get your session
