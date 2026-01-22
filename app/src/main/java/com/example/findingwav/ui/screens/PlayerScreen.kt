@@ -346,6 +346,21 @@ private fun Player(
         currentSongMetadata.value = musicPlayer.getCurrentSong(false)!!.mediaMetadata
     }
 
+    val isPlaying = remember {
+        mutableStateOf(false)
+    }
+    // Following this guide for this stuff:
+    // https://alitalhacoban.medium.com/build-music-player-with-jetpack-compose-media3-exoplayer-cf3d44a0a67a
+    val currentPosition = remember {
+        mutableLongStateOf(0)
+    }
+    val sliderPosition = remember {
+        mutableLongStateOf(currentPosition.longValue)
+    }
+    val totalDuration = remember {
+        mutableLongStateOf(musicPlayer.getCurrentSong(false)!!.mediaMetadata.durationMs!!)
+    }
+    // Personally, I'd rather not have these things  here, i can move them later TODO:
     /**
      * Whenever the song changes set the new metadata values correctly.
      * This is done to prevent naturally completing a song but not having the title, and other stuff change
@@ -354,9 +369,18 @@ private fun Player(
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             super.onMediaItemTransition(mediaItem, reason)
             currentSongMetadata.value = musicPlayer.getCurrentSong(false)!!.mediaMetadata
+            currentPosition.longValue = 0
+            sliderPosition.longValue = 0
+            totalDuration.longValue = currentSongMetadata.value.durationMs!!
+        }
+        /*
+        Stupid having to make this functionality, but it's more consistent than player.isPlaying
+        */
+        override fun onIsPlayingChanged(playing: Boolean) {
+            super.onIsPlayingChanged(playing)
+            isPlaying.value = playing
         }
     })
-
 
     var image: Bitmap? = null
     try {
@@ -428,19 +452,27 @@ private fun Player(
             }
         )
 
-        // Following this guide for this stuff:
-        // https://alitalhacoban.medium.com/build-music-player-with-jetpack-compose-media3-exoplayer-cf3d44a0a67a
-        val isPlaying = remember {
-            mutableStateOf(false)
+
+        // currentPosition.longValue = musicPlayer.player.currentPosition
+        // I think the point of the LaunchedEffects is to make sure that the thing is in the right thread (main)
+        LaunchedEffect(key1 = musicPlayer.player.currentPosition, key2 = isPlaying.value) {
+            delay(1000)
+            currentPosition.longValue = musicPlayer.player.currentPosition
+            musicPlayer.previousSongPlayTime(currentPosition.longValue)
         }
-        val currentPosition = remember {
-            mutableLongStateOf(0)
+
+        LaunchedEffect(key1 = musicPlayer.isPlaying(), key2 = !musicPlayer.isPlaying()) {
+            isPlaying.value = musicPlayer.isPlaying()
         }
-        val sliderPosition = remember {
-            mutableLongStateOf(currentPosition.longValue)
+
+        LaunchedEffect(sliderPosition) {
+            sliderPosition.longValue = currentPosition.longValue
         }
-        val totalDuration = remember {
-            mutableLongStateOf(musicPlayer.getCurrentSong(false)!!.mediaMetadata.durationMs!!)
+
+        LaunchedEffect(musicPlayer.player.duration) {
+            if (musicPlayer.player.duration > -1) {
+                totalDuration.longValue = musicPlayer.getCurrentSong(false)!!.mediaMetadata.durationMs!!
+            }
         }
 
         TrackSlider(
@@ -459,24 +491,6 @@ private fun Player(
             },
             songDuration = totalDuration.longValue.toFloat()
         )
-
-//        currentPosition.longValue = musicPlayer.player.currentPosition
-        // I think the point of the LaunchedEffects is to make sure that the thing is in the right thread (main)
-        LaunchedEffect(key1 = musicPlayer.player.currentPosition, key2 = isPlaying.value) {
-            delay(1000)
-            currentPosition.longValue = musicPlayer.player.currentPosition
-            musicPlayer.previousSongPlayTime(currentPosition.longValue)
-        }
-
-        LaunchedEffect(sliderPosition) {
-            sliderPosition.longValue = currentPosition.longValue
-        }
-
-        LaunchedEffect(musicPlayer.player.duration) {
-            if (musicPlayer.player.duration > 0) {
-                totalDuration.longValue = musicPlayer.getCurrentSong(false)!!.mediaMetadata.durationMs!!
-            }
-        }
         // music times
         var minutes = totalDuration.value / (60000)
         var seconds = (totalDuration.longValue / 1000) % 60
@@ -506,8 +520,6 @@ private fun Player(
                 currentSongMetadata.value = musicPlayer.getCurrentSong(false)!!.mediaMetadata
             })
     }
-
-
 }
 
 @Composable

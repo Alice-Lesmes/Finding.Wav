@@ -1,6 +1,7 @@
 package com.example.findingwav
 
 import android.content.Context
+import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
@@ -28,6 +29,11 @@ public class MusicPlayer(val player: Player, songs: List<MediaItem>? = null) {
     private var currentPlaylistName : String = "Main"
     private var currentPlaylist : MutableList<MediaItem> = mutableListOf()
     private var playLists : MutableMap<String, MutableList<MediaItem>> = mutableMapOf(currentPlaylistName to currentPlaylist)
+    /**
+     * Value to tell whether the music player is playing, since for some reason it's not always
+     * consistent
+     */
+    private var isPlaying = false
 
     /**
      * Initialises a MusicPlayer Instance
@@ -59,6 +65,7 @@ public class MusicPlayer(val player: Player, songs: List<MediaItem>? = null) {
                 }
             }
         })
+
     }
 
     /**
@@ -185,6 +192,10 @@ public class MusicPlayer(val player: Player, songs: List<MediaItem>? = null) {
      */
     public fun getCurrentSong() : MediaItem? {
         return player.currentMediaItem
+    }
+
+    public fun isPlaying() : Boolean {
+        return isPlaying
     }
     /**
      * Determines the current song/MediaItem
