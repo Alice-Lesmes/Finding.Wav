@@ -3,8 +3,6 @@ package com.example.findingwav.ui.screens
 import android.content.Context
 import android.graphics.Bitmap
 import android.os.Build
-import android.util.MutableBoolean
-import android.widget.SeekBar
 import androidx.annotation.OptIn
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
@@ -59,21 +57,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
+import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
-import androidx.core.graphics.drawable.toDrawable
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.Player.MEDIA_ITEM_TRANSITION_REASON_AUTO
-import androidx.media3.common.Player.MEDIA_ITEM_TRANSITION_REASON_SEEK
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.session.MediaSession
-import androidx.media3.session.MediaSessionService
-import com.example.findingwav.MainActivity
 import com.example.findingwav.MusicPlayer
 import com.example.findingwav.NextOpts
 import com.example.findingwav.R
-import com.example.findingwav.data.NECESSARY_PLAYTIME
 import com.example.findingwav.toM3U
 import com.example.findingwav.ui.theme.FindingWavTheme
 import com.github.theapache64.twyper.SwipedOutDirection
@@ -81,11 +73,6 @@ import com.github.theapache64.twyper.Twyper
 import com.github.theapache64.twyper.TwyperController
 import com.github.theapache64.twyper.rememberTwyperController
 import kotlinx.coroutines.delay
-import java.io.IOException
-import kotlin.collections.forEach
-import androidx.core.content.ContextCompat
-import androidx.media3.ui.DefaultTimeBar
-import androidx.media3.ui.TimeBar
 
 
 @RequiresApi(Build.VERSION_CODES.Q)
@@ -96,7 +83,6 @@ fun PlayerScreen(musicPlayer : MusicPlayer, context : Context) {
 
             Modifier.fillMaxSize()) { innerPadding ->
         }
-
 
         // main ui
         Row(
@@ -125,45 +111,6 @@ fun PlayerScreen(musicPlayer : MusicPlayer, context : Context) {
         }
         currentSong.value = musicPlayer.getCurrentSong(false)!!
         currentSongMetadata.value = currentSong.value.mediaMetadata
-        // Can move this basically anywhere as long as it activates and can properly
-        /**
-         * This listener checks to see if the reason that a song was changed was
-         * because the song automatically finished
-         */
-        musicPlayer.player.addListener(object : androidx.media3.common.Player.Listener {
-            @androidx.annotation.OptIn(UnstableApi::class)
-            override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-
-                println("INDEX: " + musicPlayer.player.previousMediaItemIndex)
-                // If it automatically transitioned to next song
-                if (reason == MEDIA_ITEM_TRANSITION_REASON_AUTO) {
-                    println("AUTO REASON")
-                    val completedSong = musicPlayer.player.getMediaItemAt(
-                        musicPlayer.player.previousMediaItemIndex)
-                    // Assures not null (optional) i think
-                    completedSong?.let {
-                        musicPlayer.addSong(
-                            it
-                        )
-                    }
-                } else {
-                    // ~~Really not needed but whatever~~ // LOUD INCORRECT BUZZER NOISE
-                    if (reason == MEDIA_ITEM_TRANSITION_REASON_SEEK) {
-                        println("SEEK REASON")
-                        println("Media Item == " + mediaItem?.mediaMetadata!!.title)
-                        val completedSong = musicPlayer.player.getMediaItemAt(
-                            musicPlayer.player.previousMediaItemIndex)
-                        // The `!contains` prevents duplicates being added to playlist
-                        if (!musicPlayer.getCurrentPlaylist().contains(completedSong) &&
-                            musicPlayer.previousSongTime >
-                                (NECESSARY_PLAYTIME * completedSong.mediaMetadata.durationMs!!)) {
-                            println("Over ${NECESSARY_PLAYTIME * 100}% PLAYED!")
-                            musicPlayer.addSong(completedSong)
-                        }
-                    }
-                }
-            }
-        })
 
         // Idk what this really does, uh, god help us all
         Player(
@@ -173,7 +120,7 @@ fun PlayerScreen(musicPlayer : MusicPlayer, context : Context) {
                 currentSong.value = musicPlayer.player.currentMediaItem!!
             },
             onAccept = {
-                musicPlayer.player.currentMediaItem?.let {musicPlayer.nextSong(NextOpts.FORCEADD) }
+                currentSong.value = musicPlayer.getCurrentSong(false)!!
             },
             onReject = {
                 currentSong.value = musicPlayer.getCurrentSong(false)!!
@@ -449,11 +396,13 @@ private fun Player(
             twyperController = twyperController,
             onAccept =  {
                 onAccept()
-                musicPlayer.player.seekToNextMediaItem()
+                musicPlayer.nextSong(NextOpts.FORCEADD)
+//                musicPlayer.player.seekToNextMediaItem()
                 currentSongMetadata.value = musicPlayer.getCurrentSong(false)!!.mediaMetadata
             },
             onReject = {
-                musicPlayer.player.seekToNextMediaItem()
+                musicPlayer.nextSong(NextOpts.DONTADD)
+ //               musicPlayer.player.seekToNextMediaItem()
                 currentSongMetadata.value = musicPlayer.getCurrentSong(false)!!.mediaMetadata
 
             },
@@ -543,12 +492,13 @@ private fun Player(
             play = { isPlaying.value = true; musicPlayer.player.play() },
             pause = { isPlaying.value = false; musicPlayer.player.pause() },
             skipSong = {
-                musicPlayer.player.seekToNextMediaItem()
+                musicPlayer.nextSong(NextOpts.NORMAL)
+                //musicPlayer.player.seekToNextMediaItem()
                 currentSongMetadata.value = musicPlayer.getCurrentSong(false)!!.mediaMetadata
             },
             previousSong = {
-                // FIXME: for some reason when this is called, it can crash the app if go back too much
-                musicPlayer.player.seekToPreviousMediaItem()
+                musicPlayer.previousSong(NextOpts.NORMAL)
+//                musicPlayer.player.seekToPreviousMediaItem()
                 currentSongMetadata.value = musicPlayer.getCurrentSong(false)!!.mediaMetadata
             })
     }
