@@ -1,6 +1,7 @@
 package com.example.findingwav
 
 import android.content.Context
+import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
@@ -59,6 +60,7 @@ public class MusicPlayer(val player: Player, songs: List<MediaItem>? = null) {
                 }
             }
         })
+
     }
 
     /**
@@ -186,6 +188,7 @@ public class MusicPlayer(val player: Player, songs: List<MediaItem>? = null) {
     public fun getCurrentSong() : MediaItem? {
         return player.currentMediaItem
     }
+
     /**
      * Determines the current song/MediaItem
      * @see 'To <b>query</b> this item for it's metadata use getCurrentSong().mediaMetadata.xxxx'
