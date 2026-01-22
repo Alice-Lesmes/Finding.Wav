@@ -258,118 +258,111 @@ private fun SettingsSelect() {
  * selectPlaylist(): Function to select playlist based off name.
  * */
 @Composable
-private fun PlaylistSelect(playlists: MutableMap<String, MutableList<MediaItem>>, selectPlaylist: (String) -> Unit) {
-    // dropdown menu for playlist select
-    // Declaring a boolean value to store
-    // the expanded state of the Text Field
+private fun PlaylistSelect(
+    playlists: MutableMap<String, MutableList<MediaItem>>,
+    selectPlaylist: (String) -> Unit,
+    onCreateClicked: () -> Unit // <--- Callback to open the dialog
+) {
     var mExpanded by remember { mutableStateOf(false) }
+    val mPlaylist = playlists.keys.toList()
 
-    // Create a list of cities
+    // Default text logic
+    var mSelectedText by remember { mutableStateOf("Select Playlist") }
 
-    val mPlaylist = playlists.keys
+    var mTextFieldSize by remember { mutableStateOf(Size.Zero) }
 
-    // Create a string value to store the selected city
-    var mSelectedText by remember { mutableStateOf("") }
+    val icon = if (mExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown
 
-    var mTextFieldSize by remember { mutableStateOf(Size.Zero)}
+    Column(modifier = Modifier.padding(horizontal = 20.dp)) {
 
-    var showCreation by remember {
-        mutableStateOf(false)
-    }
-
-    // Up Icon when expanded and down icon when collapsed
-    val icon = if (mExpanded)
-        Icons.Filled.KeyboardArrowUp
-    else
-        Icons.Filled.KeyboardArrowDown
-
-    Column(Modifier.padding(horizontal = 20.dp)) {
-
-        // Create an Outlined Text Field
-        // with icon and not expanded
+        // The Dropdown Trigger (Text Field)
         OutlinedTextField(
             value = mSelectedText,
             onValueChange = { mSelectedText = it },
             modifier = Modifier
                 .fillMaxWidth()
                 .onGloballyPositioned { coordinates ->
-                    // This value is used to assign to
-                    // the DropDown the same width
                     mTextFieldSize = coordinates.size.toSize()
                 },
-            label = {Text("Playlist")},
+            label = { Text("Playlist") },
             trailingIcon = {
-                Icon(icon,"contentDescription",
+                Icon(icon, "contentDescription",
                     Modifier.clickable { mExpanded = !mExpanded })
             },
             readOnly = true
         )
 
-        // Create a drop-down menu with list of cities,
-        // when clicked, set the Text Field text as the city selected
+        // The Menu itself
         DropdownMenu(
             expanded = mExpanded,
             onDismissRequest = { mExpanded = false },
-            modifier = Modifier
-                .width(with(LocalDensity.current){mTextFieldSize.width.toDp()})
+            modifier = Modifier.width(with(LocalDensity.current) { mTextFieldSize.width.toDp() })
         ) {
+            // Existing Playlists
             mPlaylist.forEach { label ->
-                DropdownMenuItem(onClick = {
-                    mSelectedText = label
-                    // set playlist (current playlist)
-                    selectPlaylist(label)
-                    mExpanded = false
-                },
-                    text = { Text(text = label) }
+                DropdownMenuItem(
+                    text = { Text(text = label) },
+                    onClick = {
+                        mSelectedText = label
+                        selectPlaylist(label)
+                        mExpanded = false
+                    }
                 )
             }
 
-            // create new playlist button
-            DropdownMenuItem(text = { Text(text = "Create New Playlist") }, onClick = { showCreation = true })
+            // create new thingy
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        text = "Create New Playlist",
+                        color = MaterialTheme.colorScheme.primary // Optional: Make it stand out
+                    )
+                },
+                onClick = {
+                    mExpanded = false // Close menu first
+                    onCreateClicked() // Then open dialog
+                }
+            )
         }
-    }
-
-    /** Prompt the user to enter text and create a new playlist
-     * Holy hell I am tired
-     */
-    if (showCreation) {
-
     }
 }
 
+/** Popup that displays when creating a new playlist. */
 // https://stackoverflow.com/questions/73455840/textfield-new-line-issue-in-alert-dialog-with-jetpack-compose
 @Composable
-private fun CreatePlaylistAlert() {
-    var showCreation by remember {
-        mutableStateOf(false)
-    }
-
+fun CreatePlaylistAlert(
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
     val text = remember { mutableStateOf("") }
-    val textLength = remember { mutableStateOf(0) }
 
     AlertDialog(
-        onDismissRequest = { showCreation = false },
-        title = {
-            Text(text = "Create new playlist?")
+        onDismissRequest = onDismiss,
+        title = { Text(text = "New Playlist Name") },
+        text = {
+            TextField(
+                value = text.value,
+                onValueChange = { if (it.length <= 200) text.value = it },
+                singleLine = true
+            )
         },
-        text = { TextField(
-            value = text.value,
-            onValueChange = {
-                if (it.length > 200) {
-                    textLength.value = it.length
-                    text.value = it
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (text.value.isNotBlank()) {
+                        onConfirm(text.value)
+                    }
                 }
-            },
-        )},
-        confirmButton = { Button(onClick = { showCreation = false;})
-        {
-            // This is the text of the button
-            Text(text = "Add Playlist")
-        }
+            ) {
+                Text("Create")
+            }
         },
-
-
-        )
+        dismissButton = {
+            Button(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 
 
@@ -437,12 +430,15 @@ private fun Player(
     }
 
 
+    var showCreateDialog by remember { mutableStateOf(false) }
+    // main body thingy
     Column (
         modifier = Modifier.padding(top = 110.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // Playlist selector
-        PlaylistSelect(playlists, selectPlaylist = {selectPlaylist(currentPlaylistName)})
+        PlaylistSelect(playlists, selectPlaylist = {selectPlaylist(currentPlaylistName)},
+            onCreateClicked = { showCreateDialog = true })
         // song title (replace with song name variable
 
         SongTitle(title = currentSongMetadata.value.title.toString())
@@ -557,7 +553,23 @@ private fun Player(
             })
     }
 
+    // popup
+    // probably should separate this composable but oh well
+    if (showCreateDialog) {
+        CreatePlaylistAlert(
+            onDismiss = { showCreateDialog = false },
+            onConfirm = { newName ->
+                // Create the playlist in your music player
+                musicPlayer.addPlaylist(newName, replace = false)
 
+                // Switch to it immediately (optional)
+                musicPlayer.setCurrentPlaylist(newName)
+
+                // Close dialog
+                showCreateDialog = false
+            }
+        )
+    }
 }
 
 @Composable

@@ -16,7 +16,7 @@ public enum class NextOpts {
  * A class used to hold the ExoPlayer player, and adds extra functionality.
  * Also controls Playlists, TODO: which should prob be their own class later.
  */
-public class MusicPlayer(val player: Player) {
+public class MusicPlayer(var player: Player) {
 
     private var exoSongList: MutableList<MediaItem> = mutableListOf()
 
