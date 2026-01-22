@@ -46,7 +46,6 @@ import com.google.common.util.concurrent.MoreExecutors
 import android.content.ComponentName
 
 class MainActivity : AppCompatActivity() {
-    //private lateinit var player : MusicPlayer
     private var player: Player? = null // Use generic Player interface; NOT TO BE CONFUSED WITH PLAYER.KT.
     private var controllerFuture: ListenableFuture<MediaController>? = null
     private var musicPlayerWrapper: MusicPlayer? = null
@@ -100,7 +99,8 @@ class MainActivity : AppCompatActivity() {
             // .setCallback()
          //   .build()
         askForMusicPermission()
-            enableEdgeToEdge()
+
+        enableEdgeToEdge()
 
 
     }
@@ -128,6 +128,7 @@ class MainActivity : AppCompatActivity() {
                     musicPlayerWrapper?.addSongs(getAllMusic())
                     musicPlayerWrapper?.player?.prepare()
                 }
+
 
                 setContent {
                     PlayerScreen(musicPlayerWrapper!!, applicationContext)
