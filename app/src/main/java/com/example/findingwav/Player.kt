@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
+import androidx.media3.common.Player.MEDIA_ITEM_TRANSITION_REASON_AUTO
+import androidx.media3.common.util.UnstableApi
 import com.example.findingwav.data.NECESSARY_PLAYTIME
 import com.example.findingwav.data.REPEAT_SONGS
 
@@ -14,13 +16,14 @@ public enum class NextOpts {
 }
 
 /**
- * A class used to hold the ExoPlayer player, and adds extra functionality.
+ * A class used to hold the music player, and adds extra functionality
  * Also controls Playlists, TODO: which should prob be their own class later.
+ * @param player the music player to be used
+ * @param songs the songs to add to the music player to play
  */
-public class MusicPlayer(val player: Player) {
+public class MusicPlayer(val player: Player, songs: List<MediaItem>? = null) {
 
     private var exoSongList: MutableList<MediaItem> = mutableListOf()
-
     private var songCount : Int = 0
     private var currentPlaylistName : String = "Main"
     private var currentPlaylist : MutableList<MediaItem> = mutableListOf()
@@ -28,20 +31,34 @@ public class MusicPlayer(val player: Player) {
 
     /**
      * Initialises a MusicPlayer Instance
-     * @see addSongs
-     * @see addSong
      */
-    fun onCreate() {
+    init {
+        if (songs != null) {
+            addSongs(songs)
+        }
         player.prepare()
-    }
-    /**
-     * Initialises a MusicPlayer Instance with some songs pre-loaded
-     */
-    fun onCreate(context : Context, items : MutableList<MediaItem>) {
-        // reuse the logic below to keep lists in sync
-        addSongs(items)
-        player.prepare()
+        /**
+         * This listener checks to see if the reason that a song was changed was
+         * because the song automatically finished
+         */
+        player.addListener(object : androidx.media3.common.Player.Listener {
+            @androidx.annotation.OptIn(UnstableApi::class)
+            override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                // If it automatically transitioned to next song
+                if (reason == MEDIA_ITEM_TRANSITION_REASON_AUTO) {
+                    println("AUTO REASON")
 
+                    setPreviousSong(
+                        player.getMediaItemAt(
+                            player.previousMediaItemIndex))
+
+                    getPreviousSong()?.let {
+                        // Assuredly not Null, since if we auto progress, we have a previous song
+                        addSongToCurPlaylist(getPreviousSong()!!)
+                    }
+                }
+            }
+        })
     }
 
     /**
@@ -52,7 +69,7 @@ public class MusicPlayer(val player: Player) {
      * @see MediaItem
      * @see addSongsToPlaylist
      */
-    fun addSongs(items : MutableList<MediaItem>) {
+    fun addSongs(items : List<MediaItem>) {
         exoSongList.addAll(items)
         songCount += items.size
 

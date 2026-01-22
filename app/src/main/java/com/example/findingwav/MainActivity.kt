@@ -221,7 +221,6 @@ class MainActivity : AppCompatActivity() {
 
 
 
-
             while (cursor.moveToNext()) {
                 val isMusic = cursor.getString(music)
                 // Check that file is music file
