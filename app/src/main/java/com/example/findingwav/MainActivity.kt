@@ -188,6 +188,7 @@ class MainActivity : AppCompatActivity() {
             MediaStore.Audio.Media._ID,
             MediaStore.Audio.Media.DISPLAY_NAME,
             MediaStore.Audio.Media.ALBUM,
+            MediaStore.Audio.Media.ALBUM_ID,
             MediaStore.Audio.Media.ARTIST,
             MediaStore.Audio.Media.DURATION,
             MediaStore.Audio.Media.TITLE,
@@ -212,10 +213,12 @@ class MainActivity : AppCompatActivity() {
             val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
             val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
             val albumColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
+            val albumIdColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
             val artistColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
             val durationColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
             val titleColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
             val music = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.IS_MUSIC)
+
 
 
 
@@ -227,6 +230,7 @@ class MainActivity : AppCompatActivity() {
                     val id = cursor.getLong(idColumn)
                     val name = cursor.getString(nameColumn)
                     val album = cursor.getString(albumColumn)
+                    val albumId = cursor.getLong(albumIdColumn)
                     val artist = cursor.getString(artistColumn)
                     val duration = cursor.getLong(durationColumn)
                     // The actual name/title of the song file
@@ -234,11 +238,15 @@ class MainActivity : AppCompatActivity() {
                     // This is the file path of the file
                     // This is all that matters, since the player can retrieve this other data
                     val contentURI = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id)
+                    val artworkUri = ContentUris.withAppendedId(
+                        Uri.parse("content://media/external/audio/albumart"),
+                        albumId
+                    )
                     val mediaItem = MediaItem.Builder().setMediaMetadata(MediaMetadata.Builder()
                         .setTitle(title)
                         .setAlbumTitle(album)
                         .setArtist(artist)
-                        .setArtworkUri(contentURI)
+                        .setArtworkUri(artworkUri)
                         .setDurationMs(duration)
                         .setDisplayTitle(name).build())
                         .setUri(contentURI).build()
