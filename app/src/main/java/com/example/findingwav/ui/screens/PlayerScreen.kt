@@ -120,7 +120,7 @@ fun PlayerScreen(musicPlayer : MusicPlayer, context : Context) {
                 currentSong.value = musicPlayer.player.currentMediaItem!!
             },
             onAccept = {
-                musicPlayer.player.currentMediaItem?.let {musicPlayer.nextSong(NextOpts.FORCEADD) }
+                currentSong.value = musicPlayer.getCurrentSong(false)!!
             },
             onReject = {
                 currentSong.value = musicPlayer.getCurrentSong(false)!!
