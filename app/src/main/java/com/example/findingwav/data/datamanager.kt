@@ -16,3 +16,5 @@ public var NECESSARY_PLAYTIME : Double = 0.9;
  * Whether adding multiple of the same song is allowed in the playlist
  */
 public var REPEAT_SONGS : Boolean = false
+
+public var DEBUG : Boolean = true

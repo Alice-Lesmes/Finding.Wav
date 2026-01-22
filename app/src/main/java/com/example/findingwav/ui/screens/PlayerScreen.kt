@@ -3,6 +3,7 @@ package com.example.findingwav.ui.screens
 import android.content.Context
 import android.graphics.Bitmap
 import android.os.Build
+import android.widget.Toast
 import androidx.annotation.OptIn
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
@@ -66,6 +67,7 @@ import androidx.media3.common.util.UnstableApi
 import com.example.findingwav.MusicPlayer
 import com.example.findingwav.NextOpts
 import com.example.findingwav.R
+import com.example.findingwav.data.DEBUG
 import com.example.findingwav.toM3U
 import com.example.findingwav.ui.theme.FindingWavTheme
 import com.github.theapache64.twyper.SwipedOutDirection
@@ -127,7 +129,7 @@ fun PlayerScreen(musicPlayer : MusicPlayer, context : Context) {
 
             },
             musicPlayer.getPlaylists(),
-            selectPlaylist = { musicPlayer.setCurrentPlaylist(musicPlayer.getCurrentPlaylistName()) },
+            selectPlaylist = { musicPlayer.setCurrentPlaylist(musicPlayer.getCurrentPlaylistName()) }, // this i feel like is a culprit; at this point you dont even need to pass it???
             musicPlayer.getCurrentPlaylistName()
         )
     }
@@ -514,7 +516,9 @@ private fun Player(
 
                 // Switch to it immediately (optional)
                 musicPlayer.setCurrentPlaylist(newName)
-
+                if (DEBUG) {
+                    Toast.makeText(context, musicPlayer.getCurrentPlaylistName(), Toast.LENGTH_SHORT).show()
+                }
                 // Close dialog
                 showCreateDialog = false
             }

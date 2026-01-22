@@ -136,6 +136,7 @@ public class MusicPlayer(var player: Player, songs: List<MediaItem>? = null) {
      */
     public fun setCurrentPlaylist(name: String) : Boolean {
         if (getPlaylist(name) != null) {
+            // only set if it exists
             currentPlaylist = getPlaylist(name)!!
             return true
         }
