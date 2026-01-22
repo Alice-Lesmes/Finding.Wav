@@ -138,16 +138,18 @@ fun PlayerScreen(musicPlayer : MusicPlayer, context : Context) {
                 // If it automatically transitioned to next song
                 if (reason == MEDIA_ITEM_TRANSITION_REASON_AUTO) {
                     println("AUTO REASON")
-                    val completedSong = musicPlayer.player.getMediaItemAt(
-                        musicPlayer.player.previousMediaItemIndex)
-                    // Assures not null (optional) i think
-                    completedSong?.let {
-                        musicPlayer.addSong(
-                            it
-                        )
+
+                    musicPlayer.setPreviousSong(
+                        musicPlayer.player.getMediaItemAt(
+                            musicPlayer.player.previousMediaItemIndex))
+
+                   musicPlayer.getPreviousSong()?.let {
+                       // Assuredly not Null, since if we auto progress, we have a previous song
+                        musicPlayer.addSongToCurPlaylist(musicPlayer.getPreviousSong()!!)
                     }
-                } else {
+                } /* else {
                     // ~~Really not needed but whatever~~ // LOUD INCORRECT BUZZER NOISE
+
                     if (reason == MEDIA_ITEM_TRANSITION_REASON_SEEK) {
                         println("SEEK REASON")
                         println("Media Item == " + mediaItem?.mediaMetadata!!.title)
@@ -158,10 +160,11 @@ fun PlayerScreen(musicPlayer : MusicPlayer, context : Context) {
                             musicPlayer.previousSongTime >
                                 (NECESSARY_PLAYTIME * completedSong.mediaMetadata.durationMs!!)) {
                             println("Over ${NECESSARY_PLAYTIME * 100}% PLAYED!")
+
                             musicPlayer.addSong(completedSong)
                         }
                     }
-                }
+                } */
             }
         })
 
@@ -453,11 +456,13 @@ private fun Player(
             twyperController = twyperController,
             onAccept =  {
                 onAccept()
-                musicPlayer.player.seekToNextMediaItem()
+                musicPlayer.nextSong(NextOpts.FORCEADD)
+//                musicPlayer.player.seekToNextMediaItem()
                 currentSongMetadata.value = musicPlayer.getCurrentSong(false)!!.mediaMetadata
             },
             onReject = {
-                musicPlayer.player.seekToNextMediaItem()
+                musicPlayer.nextSong(NextOpts.DONTADD)
+ //               musicPlayer.player.seekToNextMediaItem()
                 currentSongMetadata.value = musicPlayer.getCurrentSong(false)!!.mediaMetadata
 
             },
@@ -547,12 +552,13 @@ private fun Player(
             play = { isPlaying.value = true; musicPlayer.player.play() },
             pause = { isPlaying.value = false; musicPlayer.player.pause() },
             skipSong = {
-                musicPlayer.player.seekToNextMediaItem()
+                musicPlayer.nextSong(NextOpts.NORMAL)
+                //musicPlayer.player.seekToNextMediaItem()
                 currentSongMetadata.value = musicPlayer.getCurrentSong(false)!!.mediaMetadata
             },
             previousSong = {
-                // FIXME: for some reason when this is called, it can crash the app if go back too much
-                musicPlayer.player.seekToPreviousMediaItem()
+                musicPlayer.previousSong(NextOpts.NORMAL)
+//                musicPlayer.player.seekToPreviousMediaItem()
                 currentSongMetadata.value = musicPlayer.getCurrentSong(false)!!.mediaMetadata
             })
     }

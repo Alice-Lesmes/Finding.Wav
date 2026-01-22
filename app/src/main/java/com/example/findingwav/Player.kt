@@ -5,6 +5,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import com.example.findingwav.data.NECESSARY_PLAYTIME
+import com.example.findingwav.data.REPEAT_SONGS
 
 public enum class NextOpts {
     NORMAL,
@@ -45,8 +46,11 @@ public class MusicPlayer(val player: Player) {
 
     /**
      * Adds a collection of songs to the music player (to be played)
+     *
+     * If you were looking to add the song to the <u>playlist</u>, see addSongsToPlaylist
      * @param items the songs to be played
      * @see MediaItem
+     * @see addSongsToPlaylist
      */
     fun addSongs(items : MutableList<MediaItem>) {
         exoSongList.addAll(items)
@@ -56,9 +60,12 @@ public class MusicPlayer(val player: Player) {
         player.addMediaItems(items)
     }
     /**
-     * Adds a song to the music player to be played
+     * Adds a song to the music player to be played.
+     *
+     * If you were looking to add the song to the <u>playlist</u>, see addSongToPlaylist
      * @param item song to be added
      * @see MediaItem
+     * @see addSongToPlaylist
      */
     fun addSong(item : MediaItem) {
         // Sync local list
@@ -83,8 +90,12 @@ public class MusicPlayer(val player: Player) {
      * @return true iff `name` exists in pre-existing playlist list and has swapped to player to
      * that playlist, else false
      */
+    /**
+     * Gets the current playlist (NOT A COPY)
+     * @return the current playlist adding to
+     */
     public fun getCurrentPlaylist() : MutableList<MediaItem> {
-        return ArrayList(currentPlaylist)
+        return currentPlaylist
     }
 
     public fun getCurrentPlaylistName() : String {
@@ -178,8 +189,21 @@ public class MusicPlayer(val player: Player) {
     }
 
     var previousSongTime : Long = 0
+    private var previousSong : MediaItem? = null
     public fun previousSongPlayTime(playTime : Long) {
         previousSongTime = playTime
+    }
+
+    public fun getPreviousSong() : MediaItem? {
+        return previousSong
+    }
+
+
+    public fun setPreviousSong(mediaItem: MediaItem) {
+        if (mediaItem == null) {
+            return
+        }
+        previousSong = mediaItem
     }
 
     /**
@@ -188,15 +212,6 @@ public class MusicPlayer(val player: Player) {
      * Forcefully add (FORCEADD); or Not add (DONTADD)
      * @return true iff song has been added, else false
      */
-    public fun getPreviousSong() : MediaItem? {
-        if (player.previousMediaItemIndex != -1) {
-            return player.getMediaItemAt(player.previousMediaItemIndex)
-        }
-        return null
-    }
-
-    // TODO: Store previous song, instead of relying on player.previousMediaItemIndex
-
     public fun nextSong(add: NextOpts = NextOpts.NORMAL) : Boolean {
         previousSongPlayTime(player.currentPosition)
         var added : Boolean = false
@@ -212,12 +227,107 @@ public class MusicPlayer(val player: Player) {
                 added = true
             }
         }
+        previousSong = getCurrentSong()
         player.seekToNextMediaItem()
         return added
     }
 
+    public fun previousSong(add: NextOpts = NextOpts.NORMAL) : Boolean {
+        previousSongPlayTime(player.currentPosition)
+        var added : Boolean = false
+
+        // Added check for duration > 0 to prevent issues when song is loading
+        val duration = player.duration
+        if (duration > 0 && (add == NextOpts.FORCEADD ||
+                    (add == NextOpts.NORMAL &&
+                            (player.currentPosition >= NECESSARY_PLAYTIME * duration)))) {
+
+            if (player.currentMediaItem != null) {
+                addSongToPlaylist(currentPlaylist, player.currentMediaItem!!)
+                added = true
+            }
+        }
+        previousSong = getCurrentSong()
+        player.seekToNextMediaItem()
+        return added
+    }
+
+    /**
+     * Adds a song to the currently playing playlist. See REPEAT_SONGS to see
+     * if multiples are allowed
+     *
+     * If you were looking to add a song to the list of songs to be judged, see addSong()
+     *
+     * It's recommended to use the previous/nextSong() functions instead of this
+     * @param playlist the playlist to add the song to
+     * @param song the song to add to the playlist
+     * @see addSong
+     * @see addSongs
+     */
+    public fun addSongToCurPlaylist(song: MediaItem) {
+        if (currentPlaylist.contains(song) && !REPEAT_SONGS)
+            return
+        currentPlaylist.add(song)
+    }
+
+    /**
+     * Adds songs to the currently playing playlist. See REPEAT_SONGS to see
+     * if multiples are allowed
+     *
+     * If you were looking to add a song to the list of songs to be judged, see addSong()
+     *
+     * It's recommended to use the previous/nextSong() functions instead of this
+     * @param songs the songs to add to the playlist
+     * @see addSong
+     * @see addSongs
+     * @see REPEAT_SONGS
+     */
+    public fun addSongsToCurPlaylist(songs: List<MediaItem>) {
+        songs.forEach {
+            if (currentPlaylist.contains(it) && !REPEAT_SONGS) {
+                return
+            }
+            currentPlaylist.add(it)
+        }
+    }
+
+    /**
+     * Adds a song to the specified playlist. See REPEAT_SONGS to see
+     * if multiples are allowed
+     *
+     * If you were looking to add a song to the list of songs to be judged, see addSong()
+     *
+     * It's recommended to use the previous/nextSong() functions instead of this
+     * @param playlist the playlist to add the song to
+     * @param song the song to add to the playlist
+     * @see addSong
+     * @see addSongs
+     */
     private fun addSongToPlaylist(playlist: MutableList<MediaItem>, song: MediaItem) {
+        if (playlist.contains(song) && !REPEAT_SONGS)
+            return
         playlist.add(song)
-        println(playlist.toString())
+    }
+
+    /**
+     * Adds the songs to the specified playing playlist. See REPEAT_SONGS to see
+     * if multiples are allowed
+     *
+     * If you were looking to add a song to the list of songs to be judged, see addSong()
+     *
+     * It's recommended to use the previous/nextSong() functions instead of this
+     * @param playlist the playlist to add the song to
+     * @param songs the songs to add to the playlist
+     * @see addSong
+     * @see addSongs
+     * @see REPEAT_SONGS
+     */
+    private fun addSongsToPlaylist(playlist: MutableList<MediaItem>, songs: List<MediaItem>) {
+        songs.forEach {
+            if (playlist.contains(it) && !REPEAT_SONGS) {
+                return
+            }
+            playlist.add(it)
+        }
     }
 }
