@@ -406,13 +406,23 @@ private fun Player(
 
     var image: Bitmap? = null
     try {
-        image = currentSongMetadata.value.artworkUri?.let {
+        // try load from contenturi instead of artwork uri
+        val hiddenUriString = currentSongMetadata.value.extras?.getString("raw_file_uri")
+
+        val uriToLoad = if (hiddenUriString != null) {
+            android.net.Uri.parse(hiddenUriString)
+        } else {
+            currentSongMetadata.value.artworkUri
+        }
+
+        // 3. Load whichever one we found
+        image = uriToLoad?.let {
             context.contentResolver.loadThumbnail(it, android.util.Size(512, 512), null)
         }
     } catch (e: Exception) {
         e.printStackTrace()
+        // 'image' remains null here, which triggers your existing fallback logic later
     }
-
     // Fallback if image failed to load OR was null
     if (image == null) {
         val noImageDrawable = ContextCompat.getDrawable(context, R.drawable.noimage)
