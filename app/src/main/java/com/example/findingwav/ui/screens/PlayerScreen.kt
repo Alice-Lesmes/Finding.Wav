@@ -106,9 +106,7 @@ fun PlayerScreen(musicPlayer : MusicPlayer, context : Context) {
         ) {
 
             // Added duration as individual parameter to avoid using deprecated MediaMetaData.durationMS
-            Export(
-                musicPlayer.getCurrentPlaylistName(),
-                musicPlayer.getPlaylist(musicPlayer.getCurrentPlaylistName()),
+            Export(musicPlayer,
                 context
             )
             Title("Finding Wuv", "Playlist Creation Mode", Modifier)
@@ -565,6 +563,7 @@ private fun Player(
                 // Switch to it immediately (optional)
                 musicPlayer.setCurrentPlaylist(newName)
 
+
                 // Close dialog
                 showCreateDialog = false
             }
@@ -867,11 +866,17 @@ fun Title(x: String, y: String, modifier: Modifier = Modifier) {
 }
 
 /** Export the current playlist */
+@RequiresApi(Build.VERSION_CODES.Q)
 @Composable
-fun Export(playlistName: String, playlist: MutableList<MediaItem>?, context: Context) {
+fun Export(player: MusicPlayer, context: Context) {
+    // originally
+    /*Button(
+        onClick = { toM3U(player.getCurrentPlaylistName(),
+            player.getCurrentPlaylist(), context) },
+    )*/
     Button(
-        onClick = { toM3U(playlistName, playlist, context) },
-    ) {
+        onClick = {player.exportPlaylist(context)}
+    ){
         Image(
             painter = painterResource(id = R.drawable.export),
             contentDescription = null,

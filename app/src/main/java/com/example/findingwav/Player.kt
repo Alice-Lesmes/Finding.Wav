@@ -1,6 +1,8 @@
 package com.example.findingwav
 
 import android.content.Context
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
@@ -219,5 +221,10 @@ public class MusicPlayer(var player: Player) {
     private fun addSongToPlaylist(playlist: MutableList<MediaItem>, song: MediaItem) {
         playlist.add(song)
         println(playlist.toString())
+    }
+
+    @RequiresApi(Build.VERSION_CODES.Q)
+    public fun exportPlaylist(context: Context) {
+        toM3U(this.getCurrentPlaylistName(), this.getCurrentPlaylist(), context)
     }
 }
