@@ -24,11 +24,14 @@ public class MusicPlayer(val player: Player) {
 
 
     fun onCreate() {
+        player.prepare()
     }
 
     fun onCreate(context : Context, items : MutableList<MediaItem>) {
         // reuse the logic below to keep lists in sync
         addSongs(items)
+        player.prepare()
+
     }
 
     /**

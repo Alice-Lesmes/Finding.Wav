@@ -112,7 +112,6 @@ fun PlayerScreen(musicPlayer : MusicPlayer, context : Context) {
             Edit(musicPlayer.getPlaylist(musicPlayer.getCurrentPlaylistName()))
         }
 
-        musicPlayer.player.prepare()
         val currentSong = remember {
             mutableStateOf(MediaItem.Builder().build())
         }
@@ -126,8 +125,6 @@ fun PlayerScreen(musicPlayer : MusicPlayer, context : Context) {
          * This listener checks to see if the reason that a song was changed was
          * because the song automatically finished
          */
-
-
         musicPlayer.player.addListener(object : androidx.media3.common.Player.Listener {
             @androidx.annotation.OptIn(UnstableApi::class)
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
@@ -388,12 +385,13 @@ private fun Player(
     val twyperController = rememberTwyperController()
 
     val currentSongMetadata = remember {
-        mutableStateOf(musicPlayer.player.mediaMetadata)
+        mutableStateOf(musicPlayer.getCurrentSong(false)!!.mediaMetadata)
     }
 
     LaunchedEffect(currentSongMetadata) {
-        currentSongMetadata.value = musicPlayer.player.mediaMetadata
+        currentSongMetadata.value = musicPlayer.getCurrentSong(false)!!.mediaMetadata
     }
+
     /**
      * Whenever the song changes set the new metadata values correctly.
      * This is done to prevent naturally completing a song but not having the title, and other stuff change
@@ -401,7 +399,7 @@ private fun Player(
     musicPlayer.player.addListener(object: Player.Listener {
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             super.onMediaItemTransition(mediaItem, reason)
-            currentSongMetadata.value = musicPlayer.player.mediaMetadata
+            currentSongMetadata.value = musicPlayer.getCurrentSong(false)!!.mediaMetadata
         }
     })
 
@@ -438,11 +436,11 @@ private fun Player(
             onAccept =  {
                 onAccept()
                 musicPlayer.player.seekToNextMediaItem()
-                currentSongMetadata.value = musicPlayer.player.mediaMetadata
+                currentSongMetadata.value = musicPlayer.getCurrentSong(false)!!.mediaMetadata
             },
             onReject = {
                 musicPlayer.player.seekToNextMediaItem()
-                currentSongMetadata.value = musicPlayer.player.mediaMetadata
+                currentSongMetadata.value = musicPlayer.getCurrentSong(false)!!.mediaMetadata
 
             },
             items = listOf(currentSongMetadata.value)
@@ -530,11 +528,12 @@ private fun Player(
             musicPlayer.player,
             skipSong = {
                 musicPlayer.player.seekToNextMediaItem()
-                currentSongMetadata.value = musicPlayer.player.mediaMetadata
+                currentSongMetadata.value = musicPlayer.getCurrentSong(false)!!.mediaMetadata
             },
             previousSong = {
+                // FIXME: for some reason when this is called, it can crash the app if go back too much
                 musicPlayer.player.seekToPreviousMediaItem()
-                currentSongMetadata.value = musicPlayer.player.mediaMetadata
+                currentSongMetadata.value = musicPlayer.getCurrentSong(false)!!.mediaMetadata
             })
     }
 
