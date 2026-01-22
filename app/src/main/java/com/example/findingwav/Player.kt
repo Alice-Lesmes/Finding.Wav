@@ -265,7 +265,7 @@ public class MusicPlayer(val player: Player, songs: List<MediaItem>? = null) {
             }
         }
         previousSong = getCurrentSong()
-        player.seekToNextMediaItem()
+        player.seekToPrevious()
         return added
     }
 
