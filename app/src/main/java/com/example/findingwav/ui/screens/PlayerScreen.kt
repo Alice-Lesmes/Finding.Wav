@@ -3,6 +3,9 @@ package com.example.findingwav.ui.screens
 import android.content.Context
 import android.graphics.Bitmap
 import android.os.Build
+import android.util.MutableBoolean
+import android.widget.SeekBar
+import androidx.annotation.OptIn
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -81,17 +84,19 @@ import kotlinx.coroutines.delay
 import java.io.IOException
 import kotlin.collections.forEach
 import androidx.core.content.ContextCompat
+import androidx.media3.ui.DefaultTimeBar
+import androidx.media3.ui.TimeBar
 
 
 @RequiresApi(Build.VERSION_CODES.Q)
 @Composable
 fun PlayerScreen(musicPlayer : MusicPlayer, context : Context) {
-
     FindingWavTheme {
         Scaffold(modifier =
 
             Modifier.fillMaxSize()) { innerPadding ->
         }
+
 
         // main ui
         Row(
@@ -142,9 +147,10 @@ fun PlayerScreen(musicPlayer : MusicPlayer, context : Context) {
                         )
                     }
                 } else {
-                    // Really not needed but whatever
+                    // ~~Really not needed but whatever~~ // LOUD INCORRECT BUZZER NOISE
                     if (reason == MEDIA_ITEM_TRANSITION_REASON_SEEK) {
                         println("SEEK REASON")
+                        println("Media Item == " + mediaItem?.mediaMetadata!!.title)
                         val completedSong = musicPlayer.player.getMediaItemAt(
                             musicPlayer.player.previousMediaItemIndex)
                         // The `!contains` prevents duplicates being added to playlist
@@ -360,7 +366,7 @@ fun CreatePlaylistAlert(
 }
 
 
-
+@OptIn(UnstableApi::class)
 @RequiresApi(Build.VERSION_CODES.Q)
 @Composable
 private fun Player(
@@ -377,6 +383,7 @@ private fun Player(
     // Allows to control card like swiping
     val twyperController = rememberTwyperController()
 
+    // TODO: idk if this is necessary, however imma add a TODO here to double check if we do later
     val currentSongMetadata = remember {
         mutableStateOf(musicPlayer.getCurrentSong(false)!!.mediaMetadata)
     }
@@ -477,31 +484,12 @@ private fun Player(
             mutableLongStateOf(0)
         }
         val sliderPosition = remember {
-            mutableLongStateOf(0)
+            mutableLongStateOf(currentPosition.longValue)
         }
         val totalDuration = remember {
-            mutableLongStateOf(0)
+            mutableLongStateOf(musicPlayer.getCurrentSong(false)!!.mediaMetadata.durationMs!!)
         }
 
-
-        // I think the point of the LaunchedEffects is to make sure that the thing is in the right thread (main)
-        LaunchedEffect(key1 = musicPlayer.player.currentPosition, key2 = musicPlayer.player.isPlaying) {
-            delay(1000)
-            currentPosition.longValue = musicPlayer.player.currentPosition
-            musicPlayer.previousSongPlayTime(currentPosition.longValue)
-        }
-
-        LaunchedEffect(sliderPosition) {
-            sliderPosition.longValue = currentPosition.longValue
-        }
-
-        LaunchedEffect(musicPlayer.player.duration) {
-            if (musicPlayer.player.duration > 0) {
-                totalDuration.longValue = musicPlayer.player.duration
-            }
-        }
-
-        // music progress bar
         TrackSlider(
             value = currentPosition.longValue.toFloat(),
             onValueChange = {
@@ -518,6 +506,24 @@ private fun Player(
             },
             songDuration = totalDuration.longValue.toFloat()
         )
+
+//        currentPosition.longValue = musicPlayer.player.currentPosition
+        // I think the point of the LaunchedEffects is to make sure that the thing is in the right thread (main)
+        LaunchedEffect(key1 = musicPlayer.player.currentPosition, key2 = isPlaying.value) {
+            delay(1000)
+            currentPosition.longValue = musicPlayer.player.currentPosition
+            musicPlayer.previousSongPlayTime(currentPosition.longValue)
+        }
+
+        LaunchedEffect(sliderPosition) {
+            sliderPosition.longValue = currentPosition.longValue
+        }
+
+        LaunchedEffect(musicPlayer.player.duration) {
+            if (musicPlayer.player.duration > 0) {
+                totalDuration.longValue = musicPlayer.getCurrentSong(false)!!.mediaMetadata.durationMs!!
+            }
+        }
         // music times
         var minutes = totalDuration.value / (60000)
         var seconds = (totalDuration.longValue / 1000) % 60
@@ -533,6 +539,9 @@ private fun Player(
         // music controls
         Playbar(
             musicPlayer.player,
+            isPlaying.value,
+            play = { isPlaying.value = true; musicPlayer.player.play() },
+            pause = { isPlaying.value = false; musicPlayer.player.pause() },
             skipSong = {
                 musicPlayer.player.seekToNextMediaItem()
                 currentSongMetadata.value = musicPlayer.getCurrentSong(false)!!.mediaMetadata
@@ -754,6 +763,9 @@ fun TrackSlider(
 @Composable
 fun Playbar(
     mediaPlayer: Player,
+    playing: Boolean,
+    play: () -> Unit,
+    pause: () -> Unit,
     skipSong: () -> Unit,
     previousSong: () -> Unit
 ) {
@@ -765,22 +777,19 @@ fun Playbar(
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         PreviousButton(previousSong)
-        PlayButton(mediaPlayer)
+        PlayButton(mediaPlayer, playing, play, pause)
         NextButton(skipSong)
     }
 }
 
 @Composable
-fun PlayButton(mediaPlayer: Player) {
-    var playing by remember {
-        mutableStateOf(mediaPlayer.isPlaying)
-    }
+fun PlayButton(mediaPlayer: Player, playing : Boolean, play : () -> Unit, pause: () -> Unit) {
     if (!playing)
     {
         Button(
             //TODO: Make sure this .play() doesn't cause an error since it isn't prepared
             // it shouldn't since the player should have a loaded playlist
-            onClick = {  mediaPlayer.play(); playing = true  },
+            onClick = {  play()/*mediaPlayer.play(); playing = true*/  },
             colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.0F))
         ) {
             Image(painter = painterResource(id = R.drawable.play), contentDescription = null)
@@ -789,7 +798,7 @@ fun PlayButton(mediaPlayer: Player) {
     else
     {
         Button(
-            onClick = { mediaPlayer.pause(); playing = false  },
+            onClick = { pause() /*mediaPlayer.pause(); playing = false*/  },
             colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.0F))
         ) {
             Image(painter = painterResource(id = R.drawable.pause), contentDescription = null, contentScale = ContentScale.FillBounds )
