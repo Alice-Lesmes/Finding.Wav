@@ -24,36 +24,50 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import com.example.findingwav.MusicPlayer
+import androidx.media3.common.Player
 import com.example.findingwav.ui.screens.PlayerScreen
 import com.example.findingwav.ui.screens.Title
 import com.example.findingwav.ui.theme.FindingWavTheme
 import java.io.File
 import java.util.concurrent.TimeUnit
 
+// permission related???
 import android.Manifest
 import android.content.pm.PackageManager
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 
+// persistent notification related
+import androidx.media3.session.MediaController
+import androidx.media3.session.SessionToken
+import com.google.common.util.concurrent.ListenableFuture
+import com.google.common.util.concurrent.MoreExecutors
+import android.content.ComponentName
 
 class MainActivity : AppCompatActivity() {
-    private lateinit var player : MusicPlayer
+    private var player: Player? = null // Use generic Player interface; NOT TO BE CONFUSED WITH PLAYER.KT.
+    private var controllerFuture: ListenableFuture<MediaController>? = null
+    private var musicPlayerWrapper: MusicPlayer? = null
 
     // Define what happens after the user clicks "Allow" or "Deny"
     private val requestMusicPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
         if (isGranted) {
-            // Permission granted! You can now query MediaStore.
-            player.addSongs(getAllMusic())
+            // FIX: Permission just granted, load the music now!
+            if (musicPlayerWrapper != null) {
+                musicPlayerWrapper?.addSongs(getAllMusic())
+                musicPlayerWrapper?.player?.prepare()
+            }
         } else {
-            // Permission denied.
-            // Show a message explaining why the app needs this feature.
             Toast.makeText(this, "Music access is required to play songs", Toast.LENGTH_SHORT).show()
         }
     }
 
+    /** To be or not to be given permission
+     * Just call this to ask for consent bro
+     */
     fun askForMusicPermission() {
         // 1. Determine the correct permission based on Android version
         val permissionName = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -62,43 +76,70 @@ class MainActivity : AppCompatActivity() {
             Manifest.permission.READ_EXTERNAL_STORAGE // Android 12 and below
         }
 
-        // 2. Check if we already have it
-        if (ContextCompat.checkSelfPermission(this, permissionName) == PackageManager.PERMISSION_GRANTED) {
-//            loadMusic() // Already allowed, just run your logic
-            player.addSongs(getAllMusic())
-        } else {
-            // 3. Launch the dialog
+        // request if we dont have it
+        if (ContextCompat.checkSelfPermission(this, permissionName) != PackageManager.PERMISSION_GRANTED) {
             requestMusicPermissionLauncher.launch(permissionName)
         }
 
     }
-
+    /** Mainly just ask for permission and enable things */
         @RequiresApi(Build.VERSION_CODES.R)
         @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        player = MusicPlayer(ExoPlayer.Builder(applicationContext).build())
+        //player = MusicPlayer(ExoPlayer.Builder(applicationContext).build())
         // Allows to play music when using changeSong() - OUTDATED
         // var musicPlayer = MediaPlayer()
         // Allows to play music when using changeSong(), new mediaPlayer version
         // This allows for peripherals (earphones) to properly interact with the player (not sure about skipping)
-        val mediaSession = MediaSession.Builder(applicationContext, player.player)
+        //val mediaSession = MediaSession.Builder(applicationContext, player.player)
             // Allows to activate custom code on event
             // Currently using it to act on skip or previous
             // TODO: check if below code works for onMediaButtonAction, and for skip (double tap)
             // .setCallback()
-            .build()
+         //   .build()
         askForMusicPermission()
-            enableEdgeToEdge()
+
+        enableEdgeToEdge()
 
 
-         setContent {
+    }
+    /** Start the music player */
+    @RequiresApi(Build.VERSION_CODES.R)
+    override fun onStart() {
+        super.onStart()
+        val sessionToken = SessionToken(this, ComponentName(this, PlaybackService::class.java))
+        controllerFuture = MediaController.Builder(this, sessionToken).buildAsync()
 
-                 }
-        setContent {
-            // Move into own composable function for safety
-            PlayerScreen(player,
-                applicationContext)
+        controllerFuture?.addListener({
+            val controller = controllerFuture?.get()
+
+            if (controller != null) {
+                musicPlayerWrapper = MusicPlayer(controller)
+
+                // Check if we have permission AND if we need to load music
+                val hasPermission = ContextCompat.checkSelfPermission(
+                    this,
+                    if (Build.VERSION.SDK_INT >= 33) Manifest.permission.READ_MEDIA_AUDIO else Manifest.permission.READ_EXTERNAL_STORAGE
+                ) == PackageManager.PERMISSION_GRANTED
+
+                // Only add music if we have permission AND the player is empty (to avoid duplicates on restart)
+                if (hasPermission && controller.mediaItemCount == 0) {
+                    musicPlayerWrapper?.addSongs(getAllMusic())
+                    musicPlayerWrapper?.player?.prepare()
+                }
+
+
+                setContent {
+                    PlayerScreen(musicPlayerWrapper!!, applicationContext)
+                }
+            }
+        }, MoreExecutors.directExecutor())
+    }
+    override fun onStop() {
+        super.onStop()
+        controllerFuture?.let {
+            MediaController.releaseFuture(it)
         }
     }
 
@@ -147,6 +188,7 @@ class MainActivity : AppCompatActivity() {
             MediaStore.Audio.Media._ID,
             MediaStore.Audio.Media.DISPLAY_NAME,
             MediaStore.Audio.Media.ALBUM,
+            MediaStore.Audio.Media.ALBUM_ID,
             MediaStore.Audio.Media.ARTIST,
             MediaStore.Audio.Media.DURATION,
             MediaStore.Audio.Media.TITLE,
@@ -171,10 +213,12 @@ class MainActivity : AppCompatActivity() {
             val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
             val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
             val albumColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
+            val albumIdColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
             val artistColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
             val durationColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
             val titleColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
             val music = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.IS_MUSIC)
+
 
 
 
@@ -186,6 +230,7 @@ class MainActivity : AppCompatActivity() {
                     val id = cursor.getLong(idColumn)
                     val name = cursor.getString(nameColumn)
                     val album = cursor.getString(albumColumn)
+                    val albumId = cursor.getLong(albumIdColumn)
                     val artist = cursor.getString(artistColumn)
                     val duration = cursor.getLong(durationColumn)
                     // The actual name/title of the song file
@@ -193,11 +238,19 @@ class MainActivity : AppCompatActivity() {
                     // This is the file path of the file
                     // This is all that matters, since the player can retrieve this other data
                     val contentURI = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id)
+                    val artworkUri = ContentUris.withAppendedId(
+                        Uri.parse("content://media/external/audio/albumart"),
+                        albumId
+                    )
+                    val extras = Bundle().apply {
+                        putString("raw_file_uri", contentURI.toString()) // <--- Storing the file path here
+                    }
                     val mediaItem = MediaItem.Builder().setMediaMetadata(MediaMetadata.Builder()
                         .setTitle(title)
                         .setAlbumTitle(album)
                         .setArtist(artist)
-                        .setArtworkUri(contentURI)
+                        .setArtworkUri(artworkUri) // previously based on contentUri
+                        .setExtras(extras)
                         .setDurationMs(duration)
                         .setDisplayTitle(name).build())
                         .setUri(contentURI).build()

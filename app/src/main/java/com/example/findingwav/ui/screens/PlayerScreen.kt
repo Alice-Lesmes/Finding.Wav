@@ -3,6 +3,9 @@ package com.example.findingwav.ui.screens
 import android.content.Context
 import android.graphics.Bitmap
 import android.os.Build
+import android.util.MutableBoolean
+import android.widget.SeekBar
+import androidx.annotation.OptIn
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -64,6 +67,8 @@ import androidx.media3.common.Player.MEDIA_ITEM_TRANSITION_REASON_AUTO
 import androidx.media3.common.Player.MEDIA_ITEM_TRANSITION_REASON_SEEK
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.session.MediaSession
+import androidx.media3.session.MediaSessionService
 import com.example.findingwav.MainActivity
 import com.example.findingwav.MusicPlayer
 import com.example.findingwav.NextOpts
@@ -78,18 +83,20 @@ import com.github.theapache64.twyper.rememberTwyperController
 import kotlinx.coroutines.delay
 import java.io.IOException
 import kotlin.collections.forEach
-
+import androidx.core.content.ContextCompat
+import androidx.media3.ui.DefaultTimeBar
+import androidx.media3.ui.TimeBar
 
 
 @RequiresApi(Build.VERSION_CODES.Q)
 @Composable
 fun PlayerScreen(musicPlayer : MusicPlayer, context : Context) {
-
     FindingWavTheme {
         Scaffold(modifier =
 
             Modifier.fillMaxSize()) { innerPadding ->
         }
+
 
         // main ui
         Row(
@@ -110,7 +117,6 @@ fun PlayerScreen(musicPlayer : MusicPlayer, context : Context) {
             Edit(musicPlayer.getPlaylist(musicPlayer.getCurrentPlaylistName()))
         }
 
-        musicPlayer.player.prepare()
         val currentSong = remember {
             mutableStateOf(MediaItem.Builder().build())
         }
@@ -124,8 +130,6 @@ fun PlayerScreen(musicPlayer : MusicPlayer, context : Context) {
          * This listener checks to see if the reason that a song was changed was
          * because the song automatically finished
          */
-
-
         musicPlayer.player.addListener(object : androidx.media3.common.Player.Listener {
             @androidx.annotation.OptIn(UnstableApi::class)
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
@@ -143,9 +147,10 @@ fun PlayerScreen(musicPlayer : MusicPlayer, context : Context) {
                         )
                     }
                 } else {
-                    // Really not needed but whatever
+                    // ~~Really not needed but whatever~~ // LOUD INCORRECT BUZZER NOISE
                     if (reason == MEDIA_ITEM_TRANSITION_REASON_SEEK) {
                         println("SEEK REASON")
+                        println("Media Item == " + mediaItem?.mediaMetadata!!.title)
                         val completedSong = musicPlayer.player.getMediaItemAt(
                             musicPlayer.player.previousMediaItemIndex)
                         // The `!contains` prevents duplicates being added to playlist
@@ -368,7 +373,7 @@ private fun CreatePlaylistAlert() {
 }
 
 
-
+@OptIn(UnstableApi::class)
 @RequiresApi(Build.VERSION_CODES.Q)
 @Composable
 private fun Player(
@@ -385,13 +390,15 @@ private fun Player(
     // Allows to control card like swiping
     val twyperController = rememberTwyperController()
 
+    // TODO: idk if this is necessary, however imma add a TODO here to double check if we do later
     val currentSongMetadata = remember {
-        mutableStateOf(musicPlayer.player.mediaMetadata)
+        mutableStateOf(musicPlayer.getCurrentSong(false)!!.mediaMetadata)
     }
 
     LaunchedEffect(currentSongMetadata) {
-        currentSongMetadata.value = musicPlayer.player.mediaMetadata
+        currentSongMetadata.value = musicPlayer.getCurrentSong(false)!!.mediaMetadata
     }
+
     /**
      * Whenever the song changes set the new metadata values correctly.
      * This is done to prevent naturally completing a song but not having the title, and other stuff change
@@ -399,21 +406,34 @@ private fun Player(
     musicPlayer.player.addListener(object: Player.Listener {
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             super.onMediaItemTransition(mediaItem, reason)
-            currentSongMetadata.value = musicPlayer.player.mediaMetadata
+            currentSongMetadata.value = musicPlayer.getCurrentSong(false)!!.mediaMetadata
         }
     })
 
 
-    var image : Bitmap
+    var image: Bitmap? = null
     try {
-        image = currentSongMetadata.value.artworkUri?.let {
-            context.contentResolver.loadThumbnail(
-                it, android.util.Size(512, 512), null
-            )
-        }!!
-    } catch (e: IOException ) {
-        // For some reason this image isn't displayed, it's a gray square instead.
-        image = R.drawable.reject.toDrawable().toBitmap(width = 512, height = 512)
+        // try load from contenturi instead of artwork uri
+        val hiddenUriString = currentSongMetadata.value.extras?.getString("raw_file_uri")
+
+        val uriToLoad = if (hiddenUriString != null) {
+            android.net.Uri.parse(hiddenUriString)
+        } else {
+            currentSongMetadata.value.artworkUri
+        }
+
+        // 3. Load whichever one we found
+        image = uriToLoad?.let {
+            context.contentResolver.loadThumbnail(it, android.util.Size(512, 512), null)
+        }
+    } catch (e: Exception) {
+        e.printStackTrace()
+        // 'image' remains null here, which triggers your existing fallback logic later
+    }
+    // Fallback if image failed to load OR was null
+    if (image == null) {
+        val noImageDrawable = ContextCompat.getDrawable(context, R.drawable.noimage)
+        image = noImageDrawable?.toBitmap(512, 512)
     }
 
 
@@ -429,16 +449,16 @@ private fun Player(
         // Card swiping view
         CardSwipe(
             artist = currentSongMetadata.value.artist.toString(),
-            image = image,
+            image = image!!,
             twyperController = twyperController,
             onAccept =  {
                 onAccept()
                 musicPlayer.player.seekToNextMediaItem()
-                currentSongMetadata.value = musicPlayer.player.mediaMetadata
+                currentSongMetadata.value = musicPlayer.getCurrentSong(false)!!.mediaMetadata
             },
             onReject = {
                 musicPlayer.player.seekToNextMediaItem()
-                currentSongMetadata.value = musicPlayer.player.mediaMetadata
+                currentSongMetadata.value = musicPlayer.getCurrentSong(false)!!.mediaMetadata
 
             },
             items = listOf(currentSongMetadata.value)
@@ -468,31 +488,12 @@ private fun Player(
             mutableLongStateOf(0)
         }
         val sliderPosition = remember {
-            mutableLongStateOf(0)
+            mutableLongStateOf(currentPosition.longValue)
         }
         val totalDuration = remember {
-            mutableLongStateOf(0)
+            mutableLongStateOf(musicPlayer.getCurrentSong(false)!!.mediaMetadata.durationMs!!)
         }
 
-
-        // I think the point of the LaunchedEffects is to make sure that the thing is in the right thread (main)
-        LaunchedEffect(key1 = musicPlayer.player.currentPosition, key2 = musicPlayer.player.isPlaying) {
-            delay(1000)
-            currentPosition.longValue = musicPlayer.player.currentPosition
-            musicPlayer.previousSongPlayTime(currentPosition.longValue)
-        }
-
-        LaunchedEffect(sliderPosition) {
-            sliderPosition.longValue = currentPosition.longValue
-        }
-
-        LaunchedEffect(musicPlayer.player.duration) {
-            if (musicPlayer.player.duration > 0) {
-                totalDuration.longValue = musicPlayer.player.duration
-            }
-        }
-
-        // music progress bar
         TrackSlider(
             value = currentPosition.longValue.toFloat(),
             onValueChange = {
@@ -509,6 +510,24 @@ private fun Player(
             },
             songDuration = totalDuration.longValue.toFloat()
         )
+
+//        currentPosition.longValue = musicPlayer.player.currentPosition
+        // I think the point of the LaunchedEffects is to make sure that the thing is in the right thread (main)
+        LaunchedEffect(key1 = musicPlayer.player.currentPosition, key2 = isPlaying.value) {
+            delay(1000)
+            currentPosition.longValue = musicPlayer.player.currentPosition
+            musicPlayer.previousSongPlayTime(currentPosition.longValue)
+        }
+
+        LaunchedEffect(sliderPosition) {
+            sliderPosition.longValue = currentPosition.longValue
+        }
+
+        LaunchedEffect(musicPlayer.player.duration) {
+            if (musicPlayer.player.duration > 0) {
+                totalDuration.longValue = musicPlayer.getCurrentSong(false)!!.mediaMetadata.durationMs!!
+            }
+        }
         // music times
         var minutes = totalDuration.value / (60000)
         var seconds = (totalDuration.longValue / 1000) % 60
@@ -524,13 +543,17 @@ private fun Player(
         // music controls
         Playbar(
             musicPlayer.player,
+            isPlaying.value,
+            play = { isPlaying.value = true; musicPlayer.player.play() },
+            pause = { isPlaying.value = false; musicPlayer.player.pause() },
             skipSong = {
                 musicPlayer.player.seekToNextMediaItem()
-                currentSongMetadata.value = musicPlayer.player.mediaMetadata
+                currentSongMetadata.value = musicPlayer.getCurrentSong(false)!!.mediaMetadata
             },
             previousSong = {
+                // FIXME: for some reason when this is called, it can crash the app if go back too much
                 musicPlayer.player.seekToPreviousMediaItem()
-                currentSongMetadata.value = musicPlayer.player.mediaMetadata
+                currentSongMetadata.value = musicPlayer.getCurrentSong(false)!!.mediaMetadata
             })
     }
 
@@ -594,7 +617,11 @@ fun CardSwipe(
             onAccept()
         }
     }) {
-        Column {
+        Column (
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier
+                    .fillMaxWidth(0.8f)
+        ) {
             MusicImage(image = image)
 
             ArtistName(name = artist)
@@ -611,6 +638,7 @@ fun CardSwipe(
 fun ArtistName(name: String) {
     Text(
         text = name,
+        textAlign = TextAlign.Center,
         modifier = Modifier.padding(top = 5.dp)    )
 }
 
@@ -722,7 +750,10 @@ fun TrackSlider(
 
 @Composable
 fun Playbar(
-    mediaPlayer: ExoPlayer,
+    mediaPlayer: Player,
+    playing: Boolean,
+    play: () -> Unit,
+    pause: () -> Unit,
     skipSong: () -> Unit,
     previousSong: () -> Unit
 ) {
@@ -734,22 +765,19 @@ fun Playbar(
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         PreviousButton(previousSong)
-        PlayButton(mediaPlayer)
+        PlayButton(mediaPlayer, playing, play, pause)
         NextButton(skipSong)
     }
 }
 
 @Composable
-fun PlayButton(mediaPlayer: ExoPlayer) {
-    var playing by remember {
-        mutableStateOf(mediaPlayer.isPlaying)
-    }
+fun PlayButton(mediaPlayer: Player, playing : Boolean, play : () -> Unit, pause: () -> Unit) {
     if (!playing)
     {
         Button(
             //TODO: Make sure this .play() doesn't cause an error since it isn't prepared
             // it shouldn't since the player should have a loaded playlist
-            onClick = {  mediaPlayer.play(); playing = true  },
+            onClick = {  play()/*mediaPlayer.play(); playing = true*/  },
             colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.0F))
         ) {
             Image(painter = painterResource(id = R.drawable.play), contentDescription = null)
@@ -758,7 +786,7 @@ fun PlayButton(mediaPlayer: ExoPlayer) {
     else
     {
         Button(
-            onClick = { mediaPlayer.pause(); playing = false  },
+            onClick = { pause() /*mediaPlayer.pause(); playing = false*/  },
             colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.0F))
         ) {
             Image(painter = painterResource(id = R.drawable.pause), contentDescription = null, contentScale = ContentScale.FillBounds )
